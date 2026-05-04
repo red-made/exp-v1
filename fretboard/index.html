@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Guitar Shape Builder</title>
+  <style>
+    /* ─── RESET & ROOT ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e0e10;
+      --surface:   #18181c;
+      --border:    #2a2a32;
+      --accent:    #e8b84b;
+      --accent2:   #4be8b8;
+      --text:      #e8e6df;
+      --muted:     #6b6a66;
+      --cell-w:    52px;
+      --cell-h:    38px;
+      --radius:    6px;
+    }
+
+    body {
+      font-family: 'Courier New', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px 16px;
+      overflow-x: auto;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+    .subtitle { color: var(--muted); font-size: .75rem; letter-spacing: .1em; margin-bottom: 24px; }
+
+    /* ─── LAYOUT ────────────────────────────────────────────────────── */
+    .layout { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
+    .left  { flex: 1 1 auto; min-width: 0; }
+    .right { width: 240px; flex-shrink: 0; }
+
+    /* ─── FRETBOARD ─────────────────────────────────────────────────── */
+    .fretboard-wrap {
+      overflow-x: auto;
+      padding-bottom: 8px;
+    }
+
+    table.fretboard {
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    /* fret number row */
+    .fret-num {
+      width: var(--cell-w);
+      height: 22px;
+      text-align: center;
+      font-size: .65rem;
+      color: var(--muted);
+      letter-spacing: .06em;
+    }
+    /* nut */
+    .fret-num:first-child { width: 32px; }
+    td.nut { width: 32px; background: var(--border); border-right: 3px solid #555; }
+
+    /* string label */
+    td.string-label {
+      width: 32px;
+      text-align: center;
+      font-size: .8rem;
+      font-weight: bold;
+      color: var(--accent);
+      letter-spacing: .05em;
+      user-select: none;
+    }
+
+    /* fret cell */
+    td.fret {
+      width: var(--cell-w);
+      height: var(--cell-h);
+      border-right: 2px solid var(--border);
+      position: relative;
+      cursor: pointer;
+      text-align: center;
+      vertical-align: middle;
+      transition: background .1s;
+    }
+    /* string line through cell */
+    td.fret::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 0; right: 0;
+      height: 1px;
+      background: #444;
+      pointer-events: none;
+    }
+    /* string thickness top→bottom: high e thinnest, low E thickest */
+    tr:nth-child(2) td.fret::before { height: 0.8px; }
+    tr:nth-child(3) td.fret::before { height: 1.2px; }
+    tr:nth-child(4) td.fret::before { height: 1.6px; }
+    tr:nth-child(5) td.fret::before { height: 2.2px; }
+    tr:nth-child(6) td.fret::before { height: 2.8px; }
+    tr:nth-child(7) td.fret::before { height: 3.5px; }
+
+    td.fret:hover { background: #1f1f26; }
+
+    /* nut (open string) cell — clickable */
+    td.fret.nut {
+      cursor: pointer;
+      border-right: 3px solid #666;
+      background: #111;
+    }
+    td.fret.nut:hover { background: #1a1a1e; }
+    td.fret.nut::before { display: none; }
+
+    /* open string symbol O */
+    .open-symbol {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      display: none;
+      align-items: center; justify-content: center;
+      font-size: .58rem; font-weight: bold; color: var(--accent);
+      z-index: 2;
+    }
+    td.fret.nut.open-active .open-symbol { display: flex; }
+
+    /* mute symbol X */
+    .mute-symbol {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      font-size: 1.1rem; font-weight: bold;
+      color: #c05050;
+      display: none;
+      z-index: 2;
+      line-height: 1;
+    }
+    td.fret.nut.mute-active .mute-symbol { display: block; }
+
+    /* dot markers on frets 3,5,7,9,12 */
+    .marker-row td.fret-num { position: relative; }
+    .fret-marker {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      opacity: .5;
+    }
+
+    /* fret dot (the pressed note circle) */
+    .dot {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%,-50%);
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .62rem;
+      font-weight: bold;
+      pointer-events: none;
+      transition: transform .12s, opacity .12s;
+      z-index: 2;
+    }
+
+    /* manual shape highlight */
+    td.fret.active-manual .dot {
+      background: var(--accent);
+      color: #111;
+      box-shadow: 0 0 10px var(--accent);
+    }
+
+    /* note-selection highlight */
+    td.fret.active-note .dot {
+      background: var(--accent2);
+      color: #111;
+      box-shadow: 0 0 10px var(--accent2);
+    }
+
+    /* both active */
+    td.fret.active-manual.active-note .dot {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #111;
+      box-shadow: 0 0 12px var(--accent);
+    }
+
+    /* root note highlight */
+    td.fret.active-root .dot {
+      background: #e84b4b !important;
+      color: #fff !important;
+      box-shadow: 0 0 14px #e84b4b !important;
+    }
+
+    /* note label inside dot (when show-notes ON) */
+    .dot .note-label { pointer-events: none; }
+
+    /* root mode button highlight */
+    button.root-mode { border-color: #e84b4b; color: #e84b4b; }
+    button.root-mode.active { background: #e84b4b; color: #fff; border-color: #e84b4b; }
+    button.root-mode:hover  { background: #3a1010; border-color: #e84b4b; color: #e84b4b; }
+    button.root-mode.active:hover { background: #c03030; }
+
+    /* edit inline input in shape list */
+    .shape-item input.edit-name {
+      font-family: inherit;
+      font-size: .78rem;
+      background: #111;
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      color: var(--text);
+      padding: 2px 6px;
+      flex: 1;
+      outline: none;
+    }
+
+    /* ─── CONTROLS ──────────────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+      align-items: center;
+    }
+
+    button {
+      font-family: inherit;
+      font-size: .75rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    button:hover { background: #222228; border-color: var(--accent); color: var(--accent); }
+    button.active { background: var(--accent); color: #111; border-color: var(--accent); }
+    button.danger { border-color: #7a2020; color: #c05050; }
+    button.danger:hover { background: #3a1010; border-color: #c05050; }
+
+    .arrow-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 34px);
+      grid-template-rows: repeat(2, 34px);
+      gap: 4px;
+    }
+    .arrow-pad button {
+      width: 34px; height: 34px;
+      padding: 0;
+      font-size: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .arrow-pad .spacer { visibility: hidden; }
+
+    /* ─── SAVE SHAPE ────────────────────────────────────────────────── */
+    .save-row {
+      display: flex; gap: 8px; margin-top: 14px; align-items: center;
+    }
+    input[type="text"] {
+      font-family: inherit;
+      font-size: .8rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 6px 10px;
+      flex: 1;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input[type="text"]:focus { border-color: var(--accent); }
+
+    /* ─── SHAPES LIST ───────────────────────────────────────────────── */
+    .panel-title {
+      font-size: .65rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .io-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .io-row button {
+      flex: 1;
+      font-size: .68rem;
+      padding: 5px 6px;
+      letter-spacing: .05em;
+    }
+
+    .shapes-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+    .shape-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px 8px;
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .shape-item:hover { border-color: var(--accent); }
+    .shape-item.editing { border-color: #e84b4b; background: #1e1010; }
+    .shape-item span {
+      flex: 1;
+      font-size: .8rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .shape-item button {
+      padding: 2px 8px;
+      font-size: .65rem;
+      flex-shrink: 0;
+    }
+
+    /* ─── NOTE SELECTOR ─────────────────────────────────────────────── */
+    .note-selector {
+      margin-top: 20px;
+    }
+    .note-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .note-grid button {
+      width: 38px; height: 38px;
+      padding: 0;
+      font-size: .75rem;
+      font-weight: bold;
+    }
+    .note-grid button.selected-note {
+      background: var(--accent2);
+      color: #111;
+      border-color: var(--accent2);
+    }
+
+    /* ─── DIVIDERS ──────────────────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+
+    /* ─── SCROLLBAR ─────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ─── TOAST ─────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--accent);
+      color: #111;
+      font-size: .75rem;
+      letter-spacing: .08em;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s;
+      z-index: 999;
+    }
+    #toast.show { opacity: 1; }
+
+    /* ─── BACK LINK ─────────────────────────────────────────────────── */
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      font-size: .72rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color .15s;
+    }
+    .back-link:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<a class="back-link" href="../index.html">← Exp Lab</a>
+
+<h1>🎸 Guitar Shape Builder</h1>
+<p class="subtitle">Standard tuning · E A D G B E · 12 frets</p>
+
+<div class="layout">
+  <!-- ── LEFT: fretboard + controls ── -->
+  <div class="left">
+
+    <div class="fretboard-wrap">
+      <table class="fretboard" id="fretboard"></table>
+    </div>
+
+    <!-- Arrow pad + reset + show-notes toggle -->
+    <div class="controls">
+      <div class="arrow-pad">
+        <div class="spacer"></div>
+        <button onclick="shiftShape(0,-1)" title="Su">▲</button>
+        <div class="spacer"></div>
+        <button onclick="shiftShape(-1,0)" title="Sinistra">◀</button>
+        <button onclick="shiftShape(0,1)"  title="Giù">▼</button>
+        <button onclick="shiftShape(1,0)"  title="Destra">▶</button>
+      </div>
+
+      <button id="btnReset" onclick="resetBoard()">⟳ Reset</button>
+      <button id="btnShowNotes" onclick="toggleShowNotes()">♩ Mostra note</button>
+      <button id="btnRootMode" class="root-mode" onclick="toggleRootMode()">● Root</button>
+      <button id="btnOnePerStr" onclick="toggleOnePerString()" title="Una nota per corda">1/corda</button>
+      <button id="btnEnharmonic" onclick="toggleEnharmonic()"># ↔ b</button>
+    </div>
+
+    <!-- Save shape / Edit mode -->
+    <div class="save-row">
+      <input type="text" id="shapeName" placeholder="Nome shape…" maxlength="40"/>
+      <button id="btnSave" onclick="saveShape()">💾 Salva</button>
+      <button id="btnCancelEdit" onclick="cancelEdit()" class="danger" style="display:none">✕ Annulla</button>
+    </div>
+
+    <!-- Note selector -->
+    <div class="note-selector">
+      <hr class="divider"/>
+      <div class="panel-title">Seleziona per nota</div>
+      <div class="note-grid" id="noteGrid"></div>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT: saved shapes ── -->
+  <div class="right">
+    <div class="panel-title">Shape salvate</div>
+    <div class="io-row">
+      <button onclick="exportShapes()" title="Esporta tutte le shape in un file JSON">⬇ Esporta</button>
+      <button onclick="document.getElementById('importFile').click()" title="Importa shape da file JSON">⬆ Importa</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importShapes(event)"/>
+    </div>
+    <div class="shapes-list" id="shapesList"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  /* ════════════════════════════════════════════════════════════════════
+     CONSTANTS & STATE
+  ════════════════════════════════════════════════════════════════════ */
+
+  const STRING_NAMES  = ['e','B','G','D','A','E'];
+  const STRING_OPEN   = [4, 11, 7, 2, 9, 4];
+  const NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const NOTES_FLAT  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+  let useFlats = false;
+  function getNoteArray() { return useFlats ? NOTES_FLAT : NOTES_SHARP; }
+  const NUM_STRINGS   = 6;
+  const NUM_FRETS     = 12;
+  const MARKERS       = [3, 5, 7, 9, 12];
+
+  let activeManual = new Set();
+  let nutState = new Map();
+  let rootSet = new Set();
+  let rootMode = false;
+  let onePerString = false;
+  let editingShape = null;
+  let activeNoteFilter = null;
+  let showNotes = false;
+
+  /* ════════════════════════════════════════════════════════════════════
+     NOTE CALCULATION
+  ════════════════════════════════════════════════════════════════════ */
+
+  function getNote(strIdx, fret) {
+    return getNoteArray()[(STRING_OPEN[strIdx] + fret) % 12];
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     BUILD FRETBOARD TABLE
+  ════════════════════════════════════════════════════════════════════ */
+
+  function buildFretboard() {
+    const table = document.getElementById('fretboard');
+    table.innerHTML = '';
+
+    const markerRow = table.insertRow();
+    const emptyTh = document.createElement('th');
+    emptyTh.className = 'fret-num';
+    markerRow.appendChild(emptyTh);
+
+    for (let f = 0; f <= NUM_FRETS; f++) {
+      const th = document.createElement('th');
+      th.className = 'fret-num';
+      if (f === 0) {
+        th.textContent = '';
+      } else {
+        th.textContent = f;
+        if (MARKERS.includes(f)) {
+          const dot = document.createElement('span');
+          dot.className = 'fret-marker';
+          th.appendChild(dot);
+        }
+      }
+      markerRow.appendChild(th);
+    }
+
+    for (let s = 0; s < NUM_STRINGS; s++) {
+      const tr = table.insertRow();
+
+      const label = tr.insertCell();
+      label.className = 'string-label';
+      label.textContent = STRING_NAMES[s];
+
+      for (let f = 0; f <= NUM_FRETS; f++) {
+        const td = tr.insertCell();
+        td.dataset.str  = s;
+        td.dataset.fret = f;
+
+        if (f === 0) {
+          td.className = 'fret nut';
+          td.addEventListener('click', () => toggleNut(s));
+          const openSym = document.createElement('div');
+          openSym.className = 'open-symbol';
+          td.appendChild(openSym);
+          const muteSym = document.createElement('div');
+          muteSym.className = 'mute-symbol';
+          muteSym.textContent = '✕';
+          td.appendChild(muteSym);
+        } else {
+          td.className = 'fret';
+          td.addEventListener('click', () => toggleManual(s, f));
+        }
+
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        td.appendChild(dot);
+      }
+    }
+
+    renderNuts();
+    renderBoard();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     RENDER BOARD
+  ════════════════════════════════════════════════════════════════════ */
+
+  function renderBoard() {
+    const noteSet = new Set();
+    if (activeNoteFilter) {
+      for (let s = 0; s < NUM_STRINGS; s++) {
+        for (let f = 0; f <= NUM_FRETS; f++) {
+          if (getNote(s, f) === activeNoteFilter) noteSet.add(`${s}-${f}`);
+        }
+      }
+    }
+
+    const cells = document.querySelectorAll('td.fret:not(.nut)');
+    cells.forEach(td => {
+      const s = +td.dataset.str;
+      const f = +td.dataset.fret;
+      const key = `${s}-${f}`;
+
+      const isManual = activeManual.has(key);
+      const isNote   = noteSet.has(key);
+      const isRoot   = rootSet.has(key);
+
+      td.classList.toggle('active-manual', isManual);
+      td.classList.toggle('active-note',   isNote);
+      td.classList.toggle('active-root',   isRoot && isManual);
+
+      const dot = td.querySelector('.dot');
+      const visible = isManual || isNote;
+
+      if (showNotes && !visible) {
+        dot.style.display    = 'flex';
+        dot.style.color      = '#555';
+        dot.style.background = 'transparent';
+        dot.style.boxShadow  = 'none';
+        dot.style.fontSize   = '.55rem';
+        dot.textContent      = getNote(s, f);
+      } else if (visible) {
+        dot.style.display    = 'flex';
+        dot.style.color      = '';
+        dot.style.background = '';
+        dot.style.boxShadow  = '';
+        dot.style.fontSize   = '.62rem';
+        dot.textContent      = getNote(s, f);
+      } else {
+        dot.style.display    = 'none';
+        dot.style.color      = '';
+        dot.style.background = '';
+        dot.style.boxShadow  = '';
+        dot.style.fontSize   = '';
+        dot.textContent      = '';
+      }
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     TOGGLE MANUAL FRET
+  ════════════════════════════════════════════════════════════════════ */
+
+  function toggleManual(s, f) {
+    const key = `${s}-${f}`;
+
+    if (rootMode) {
+      if (!activeManual.has(key)) {
+        if (onePerString) clearString(s);
+        activeManual.add(key);
+      }
+      if (rootSet.has(key)) {
+        rootSet.delete(key);
+      } else {
+        rootSet.forEach(k => { if (k.startsWith(s + '-')) rootSet.delete(k); });
+        rootSet.add(key);
+      }
+      renderBoard();
+      return;
+    }
+
+    if (activeManual.has(key)) {
+      activeManual.delete(key);
+      rootSet.delete(key);
+    } else {
+      if (onePerString) clearString(s);
+      activeManual.add(key);
+    }
+    renderBoard();
+  }
+
+  function clearString(s) {
+    activeManual.forEach(k => {
+      if (k.startsWith(s + '-')) {
+        activeManual.delete(k);
+        rootSet.delete(k);
+      }
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     ROOT MODE & ONE-PER-STRING
+  ════════════════════════════════════════════════════════════════════ */
+
+  function toggleRootMode() {
+    rootMode = !rootMode;
+    document.getElementById('btnRootMode').classList.toggle('active', rootMode);
+  }
+
+  function toggleOnePerString() {
+    onePerString = !onePerString;
+    document.getElementById('btnOnePerStr').classList.toggle('active', onePerString);
+    if (onePerString) {
+      const seen = new Set();
+      [...activeManual].forEach(k => {
+        const s = k.split('-')[0];
+        if (seen.has(s)) { activeManual.delete(k); rootSet.delete(k); }
+        else seen.add(s);
+      });
+      renderBoard();
+    }
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     TOGGLE NUT (open string / mute)
+  ════════════════════════════════════════════════════════════════════ */
+
+  function toggleNut(s) {
+    const cur = nutState.get(s) || null;
+    if      (cur === null)   nutState.set(s, 'open');
+    else if (cur === 'open') nutState.set(s, 'mute');
+    else                     nutState.delete(s);
+    renderNuts();
+  }
+
+  function renderNuts() {
+    document.querySelectorAll('td.fret.nut').forEach(td => {
+      const s = +td.dataset.str;
+      const state = nutState.get(s) || null;
+      td.classList.toggle('open-active', state === 'open');
+      td.classList.toggle('mute-active', state === 'mute');
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     SHIFT SHAPE
+  ════════════════════════════════════════════════════════════════════ */
+
+  function shiftShape(dFret, dStr) {
+    if (activeManual.size === 0) return;
+
+    const coords = [...activeManual].map(k => {
+      const [s, f] = k.split('-').map(Number);
+      return { s, f };
+    });
+
+    const newCoords = coords.map(({ s, f }) => ({ s: s + dStr, f: f + dFret }));
+    for (const { s, f } of newCoords) {
+      if (s < 0 || s >= NUM_STRINGS) return;
+      if (f < 1 || f > NUM_FRETS)    return;
+    }
+
+    activeManual.clear();
+    for (const { s, f } of newCoords) {
+      activeManual.add(`${s}-${f}`);
+    }
+    renderBoard();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     RESET
+  ════════════════════════════════════════════════════════════════════ */
+
+  function resetBoard() {
+    activeManual.clear();
+    nutState.clear();
+    rootSet.clear();
+    rootMode = false;
+    document.getElementById('btnRootMode').classList.remove('active');
+    renderNuts();
+    activeNoteFilter = null;
+    document.querySelectorAll('.note-grid button').forEach(b => b.classList.remove('selected-note'));
+    renderBoard();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     ENHARMONIC & SHOW NOTES
+  ════════════════════════════════════════════════════════════════════ */
+
+  function toggleEnharmonic() {
+    useFlats = !useFlats;
+    const btn = document.getElementById('btnEnharmonic');
+    btn.textContent = useFlats ? 'b ↔ #' : '# ↔ b';
+    btn.classList.toggle('active', useFlats);
+    if (activeNoteFilter !== null) activeNoteFilter = null;
+    buildNoteGrid();
+    renderBoard();
+  }
+
+  function toggleShowNotes() {
+    showNotes = !showNotes;
+    document.getElementById('btnShowNotes').classList.toggle('active', showNotes);
+    renderBoard();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     SAVE / LOAD / DELETE SHAPES  (localStorage)
+  ════════════════════════════════════════════════════════════════════ */
+
+  function getShapes() {
+    return JSON.parse(localStorage.getItem('guitar_shapes') || '[]');
+  }
+
+  function putShapes(shapes) {
+    localStorage.setItem('guitar_shapes', JSON.stringify(shapes));
+  }
+
+  function saveShape() {
+    const name = document.getElementById('shapeName').value.trim();
+    if (!name) { showToast('Inserisci un nome!'); return; }
+    if (activeManual.size === 0 && nutState.size === 0) {
+      showToast('Seleziona almeno un fret!'); return;
+    }
+
+    const coords = [...activeManual].map(k => {
+      const [s, f] = k.split('-').map(Number);
+      return { s, f, root: rootSet.has(k) || undefined };
+    });
+    nutState.forEach((state, s) => coords.push({ s, f: 0, nut: state }));
+
+    const shapes = getShapes();
+
+    if (editingShape !== null) {
+      const idx = shapes.findIndex(sh => sh.name === editingShape);
+      if (idx !== -1) {
+        if (name !== editingShape && shapes.find(sh => sh.name === name)) {
+          showToast('Nome già esistente!'); return;
+        }
+        shapes[idx].name   = name;
+        shapes[idx].coords = coords;
+      }
+      editingShape = null;
+      exitEditMode();
+    } else {
+      const idx = shapes.findIndex(sh => sh.name === name);
+      if (idx !== -1) {
+        shapes[idx].coords = coords;
+      } else {
+        shapes.push({ name, coords });
+      }
+    }
+
+    putShapes(shapes);
+    renderShapesList();
+    document.getElementById('shapeName').value = '';
+    showToast(`"${name}" salvata!`);
+  }
+
+  function loadShape(coords) {
+    activeManual.clear();
+    nutState.clear();
+    rootSet.clear();
+    coords.forEach(({ s, f, nut, root }) => {
+      if (f === 0 && nut) {
+        nutState.set(s, nut);
+      } else if (f > 0) {
+        const key = `${s}-${f}`;
+        activeManual.add(key);
+        if (root) rootSet.add(key);
+      }
+    });
+    renderNuts();
+    renderBoard();
+  }
+
+  function deleteShape(name) {
+    const shapes = getShapes().filter(sh => sh.name !== name);
+    putShapes(shapes);
+    renderShapesList();
+    showToast(`"${name}" eliminata`);
+  }
+
+  function renderShapesList() {
+    const container = document.getElementById('shapesList');
+    const shapes = getShapes();
+    container.innerHTML = '';
+
+    if (shapes.length === 0) {
+      container.innerHTML = '<span style="color:var(--muted);font-size:.75rem;">Nessuna shape salvata</span>';
+      return;
+    }
+
+    shapes.forEach(sh => {
+      const item = document.createElement('div');
+      item.className = 'shape-item' + (editingShape === sh.name ? ' editing' : '');
+
+      const span = document.createElement('span');
+      span.textContent = sh.name;
+      span.title = sh.name;
+      item.appendChild(span);
+
+      item.addEventListener('click', (e) => {
+        if (e.target.tagName !== 'BUTTON') {
+          if (editingShape === sh.name) return;
+          if (editingShape !== null) exitEditMode();
+          loadShape(sh.coords);
+        }
+      });
+
+      const edit = document.createElement('button');
+      edit.textContent = '✎';
+      edit.title = 'Modifica shape';
+      edit.addEventListener('click', (e) => {
+        e.stopPropagation();
+        enterEditMode(sh);
+      });
+      item.appendChild(edit);
+
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.className = 'danger';
+      del.title = 'Elimina';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteShape(sh.name);
+      });
+      item.appendChild(del);
+
+      container.appendChild(item);
+    });
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     EDIT SHAPE
+  ════════════════════════════════════════════════════════════════════ */
+
+  function enterEditMode(sh) {
+    loadShape(sh.coords);
+    document.getElementById('shapeName').value = sh.name;
+    editingShape = sh.name;
+    document.getElementById('btnSave').textContent = '💾 Aggiorna';
+    document.getElementById('btnSave').classList.add('active');
+    document.getElementById('btnCancelEdit').style.display = 'inline-flex';
+    document.querySelector('.fretboard-wrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    showToast(`Modifica: "${sh.name}"`);
+  }
+
+  function exitEditMode() {
+    editingShape = null;
+    document.getElementById('shapeName').value = '';
+    document.getElementById('btnSave').textContent = '💾 Salva';
+    document.getElementById('btnSave').classList.remove('active');
+    document.getElementById('btnCancelEdit').style.display = 'none';
+  }
+
+  function cancelEdit() {
+    exitEditMode();
+    resetBoard();
+    showToast('Modifica annullata');
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     NOTE SELECTOR
+  ════════════════════════════════════════════════════════════════════ */
+
+  function buildNoteGrid() {
+    const grid = document.getElementById('noteGrid');
+    grid.innerHTML = '';
+    getNoteArray().forEach(note => {
+      const btn = document.createElement('button');
+      btn.textContent = note;
+      btn.dataset.note = note;
+      btn.addEventListener('click', () => toggleNoteFilter(note));
+      grid.appendChild(btn);
+    });
+  }
+
+  function toggleNoteFilter(note) {
+    activeNoteFilter = activeNoteFilter === note ? null : note;
+    document.querySelectorAll('.note-grid button').forEach(b => {
+      b.classList.toggle('selected-note', b.dataset.note === activeNoteFilter);
+    });
+    renderBoard();
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     EXPORT / IMPORT JSON
+  ════════════════════════════════════════════════════════════════════ */
+
+  function exportShapes() {
+    const shapes = getShapes();
+    if (shapes.length === 0) { showToast('Nessuna shape da esportare!'); return; }
+    const json = JSON.stringify({ version: 1, shapes }, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href     = url;
+    a.download = 'guitar-shapes.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`${shapes.length} shape esportate!`);
+  }
+
+  function importShapes(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const data = JSON.parse(e.target.result);
+        const incoming = Array.isArray(data) ? data : (data.shapes || []);
+        if (!Array.isArray(incoming) || incoming.length === 0) {
+          showToast('File non valido o vuoto!'); return;
+        }
+        const existing = getShapes();
+        let added = 0, updated = 0;
+        incoming.forEach(sh => {
+          if (!sh.name || !Array.isArray(sh.coords)) return;
+          const idx = existing.findIndex(e => e.name === sh.name);
+          if (idx !== -1) { existing[idx] = sh; updated++; }
+          else { existing.push(sh); added++; }
+        });
+        putShapes(existing);
+        renderShapesList();
+        showToast(`Importate: ${added} nuove, ${updated} aggiornate`);
+      } catch {
+        showToast('Errore nel file JSON!');
+      }
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     TOAST
+  ════════════════════════════════════════════════════════════════════ */
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  /* ════════════════════════════════════════════════════════════════════
+     KEYBOARD SUPPORT
+  ════════════════════════════════════════════════════════════════════ */
+
+  document.addEventListener('keydown', e => {
+    if (document.activeElement.tagName === 'INPUT') return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); shiftShape(1, 0); }
+    if (e.key === 'ArrowLeft')  { e.preventDefault(); shiftShape(-1,0); }
+    if (e.key === 'ArrowUp')    { e.preventDefault(); shiftShape(0,-1); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); shiftShape(0, 1); }
+  });
+
+  /* ════════════════════════════════════════════════════════════════════
+     INIT
+  ════════════════════════════════════════════════════════════════════ */
+
+  buildFretboard();
+  buildNoteGrid();
+  renderShapesList();
+</script>
+</body>
+</html>
