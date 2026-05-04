@@ -5,783 +5,433 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Guitar Shape Builder</title>
   <style>
-    /* ─── RESET & ROOT ─────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:        #0e0e10;
-      --surface:   #18181c;
-      --border:    #2a2a32;
-      --accent:    #e8b84b;
-      --accent2:   #4be8b8;
-      --text:      #e8e6df;
-      --muted:     #6b6a66;
-      --cell-w:    52px;
-      --cell-h:    38px;
-      --radius:    6px;
+      --bg: #0e0e10; --surface: #18181c; --border: #2a2a32;
+      --accent: #e8b84b; --accent2: #4be8b8;
+      --text: #e8e6df; --muted: #6b6a66;
+      --cell-w: 52px; --cell-h: 38px; --radius: 6px;
     }
-
-    body {
-      font-family: 'Courier New', monospace;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 24px 16px;
-      overflow-x: auto;
-    }
-
-    h1 {
-      font-size: 1.4rem;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 4px;
-    }
+    body { font-family: 'Courier New', monospace; background: var(--bg); color: var(--text); min-height: 100vh; padding: 24px 16px; overflow-x: auto; }
+    h1 { font-size: 1.4rem; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
     .subtitle { color: var(--muted); font-size: .75rem; letter-spacing: .1em; margin-bottom: 24px; }
 
-    /* ─── LAYOUT ────────────────────────────────────────────────────── */
     .layout { display: flex; gap: 28px; flex-wrap: wrap; align-items: flex-start; }
     .left  { flex: 1 1 auto; min-width: 0; }
-    .right { width: 240px; flex-shrink: 0; }
+    .right { width: 260px; flex-shrink: 0; }
 
-    /* ─── FRETBOARD ─────────────────────────────────────────────────── */
-    .fretboard-wrap {
-      overflow-x: auto;
-      padding-bottom: 8px;
-    }
-
-    table.fretboard {
-      border-collapse: collapse;
-      table-layout: fixed;
-    }
-
-    /* fret number row */
-    .fret-num {
-      width: var(--cell-w);
-      height: 22px;
-      text-align: center;
-      font-size: .65rem;
-      color: var(--muted);
-      letter-spacing: .06em;
-    }
-    /* nut */
+    .fretboard-wrap { overflow-x: auto; padding-bottom: 8px; }
+    table.fretboard { border-collapse: collapse; table-layout: fixed; }
+    .fret-num { width: var(--cell-w); height: 22px; text-align: center; font-size: .65rem; color: var(--muted); letter-spacing: .06em; }
     .fret-num:first-child { width: 32px; }
-    td.nut { width: 32px; background: var(--border); border-right: 3px solid #555; }
-
-    /* string label */
-    td.string-label {
-      width: 32px;
-      text-align: center;
-      font-size: .8rem;
-      font-weight: bold;
-      color: var(--accent);
-      letter-spacing: .05em;
-      user-select: none;
-    }
-
-    /* fret cell */
-    td.fret {
-      width: var(--cell-w);
-      height: var(--cell-h);
-      border-right: 2px solid var(--border);
-      position: relative;
-      cursor: pointer;
-      text-align: center;
-      vertical-align: middle;
-      transition: background .1s;
-    }
-    /* string line through cell */
-    td.fret::before {
-      content: '';
-      position: absolute;
-      top: 50%; left: 0; right: 0;
-      height: 1px;
-      background: #444;
-      pointer-events: none;
-    }
-    /* string thickness top→bottom: high e thinnest, low E thickest */
+    td.string-label { width: 32px; text-align: center; font-size: .8rem; font-weight: bold; color: var(--accent); letter-spacing: .05em; user-select: none; }
+    td.fret { width: var(--cell-w); height: var(--cell-h); border-right: 2px solid var(--border); position: relative; cursor: pointer; text-align: center; vertical-align: middle; transition: background .1s; }
+    td.fret::before { content: ''; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #444; pointer-events: none; }
     tr:nth-child(2) td.fret::before { height: 0.8px; }
     tr:nth-child(3) td.fret::before { height: 1.2px; }
     tr:nth-child(4) td.fret::before { height: 1.6px; }
     tr:nth-child(5) td.fret::before { height: 2.2px; }
     tr:nth-child(6) td.fret::before { height: 2.8px; }
     tr:nth-child(7) td.fret::before { height: 3.5px; }
-
     td.fret:hover { background: #1f1f26; }
-
-    /* nut (open string) cell — clickable */
-    td.fret.nut {
-      cursor: pointer;
-      border-right: 3px solid #666;
-      background: #111;
-    }
+    td.fret.nut { width: 32px; cursor: pointer; border-right: 3px solid #666; background: #111; }
     td.fret.nut:hover { background: #1a1a1e; }
     td.fret.nut::before { display: none; }
-
-    /* open string symbol O */
-    .open-symbol {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      width: 22px; height: 22px;
-      border-radius: 50%;
-      border: 2px solid var(--accent);
-      display: none;
-      align-items: center; justify-content: center;
-      font-size: .58rem; font-weight: bold; color: var(--accent);
-      z-index: 2;
-    }
+    .open-symbol { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--accent); display: none; align-items: center; justify-content: center; font-size: .58rem; font-weight: bold; color: var(--accent); z-index: 2; }
     td.fret.nut.open-active .open-symbol { display: flex; }
-
-    /* mute symbol X */
-    .mute-symbol {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      font-size: 1.1rem; font-weight: bold;
-      color: #c05050;
-      display: none;
-      z-index: 2;
-      line-height: 1;
-    }
+    .mute-symbol { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 1.1rem; font-weight: bold; color: #c05050; display: none; z-index: 2; line-height: 1; }
     td.fret.nut.mute-active .mute-symbol { display: block; }
-
-    /* dot markers on frets 3,5,7,9,12 */
-    .marker-row td.fret-num { position: relative; }
-    .fret-marker {
-      display: inline-block;
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--muted);
-      opacity: .5;
-    }
-
-    /* fret dot (the pressed note circle) */
-    .dot {
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%,-50%);
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: .62rem;
-      font-weight: bold;
-      pointer-events: none;
-      transition: transform .12s, opacity .12s;
-      z-index: 2;
-    }
-
-    /* manual shape highlight */
-    td.fret.active-manual .dot {
-      background: var(--accent);
-      color: #111;
-      box-shadow: 0 0 10px var(--accent);
-    }
-
-    /* note-selection highlight */
-    td.fret.active-note .dot {
-      background: var(--accent2);
-      color: #111;
-      box-shadow: 0 0 10px var(--accent2);
-    }
-
-    /* both active */
-    td.fret.active-manual.active-note .dot {
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: #111;
-      box-shadow: 0 0 12px var(--accent);
-    }
-
-    /* root note highlight */
-    td.fret.active-root .dot {
-      background: #e84b4b !important;
-      color: #fff !important;
-      box-shadow: 0 0 14px #e84b4b !important;
-    }
-
-    /* note label inside dot (when show-notes ON) */
-    .dot .note-label { pointer-events: none; }
-
-    /* root mode button highlight */
+    .fret-marker { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--muted); opacity: .5; }
+    .dot { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .62rem; font-weight: bold; pointer-events: none; z-index: 2; }
+    td.fret.active-manual .dot { background: var(--accent); color: #111; box-shadow: 0 0 10px var(--accent); }
+    td.fret.active-note   .dot { background: var(--accent2); color: #111; box-shadow: 0 0 10px var(--accent2); }
+    td.fret.active-manual.active-note .dot { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #111; box-shadow: 0 0 12px var(--accent); }
+    td.fret.active-root .dot { background: #e84b4b !important; color: #fff !important; box-shadow: 0 0 14px #e84b4b !important; }
     button.root-mode { border-color: #e84b4b; color: #e84b4b; }
     button.root-mode.active { background: #e84b4b; color: #fff; border-color: #e84b4b; }
     button.root-mode:hover  { background: #3a1010; border-color: #e84b4b; color: #e84b4b; }
     button.root-mode.active:hover { background: #c03030; }
 
-    /* edit inline input in shape list */
-    .shape-item input.edit-name {
-      font-family: inherit;
-      font-size: .78rem;
-      background: #111;
-      border: 1px solid var(--accent);
-      border-radius: 4px;
-      color: var(--text);
-      padding: 2px 6px;
-      flex: 1;
-      outline: none;
-    }
-
-    /* ─── CONTROLS ──────────────────────────────────────────────────── */
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-top: 16px;
-      align-items: center;
-    }
-
-    button {
-      font-family: inherit;
-      font-size: .75rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      padding: 6px 14px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--text);
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: background .15s, border-color .15s, color .15s;
-    }
+    .controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; align-items: center; }
+    button { font-family: inherit; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; padding: 6px 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius); cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
     button:hover { background: #222228; border-color: var(--accent); color: var(--accent); }
     button.active { background: var(--accent); color: #111; border-color: var(--accent); }
     button.danger { border-color: #7a2020; color: #c05050; }
     button.danger:hover { background: #3a1010; border-color: #c05050; }
-
-    .arrow-pad {
-      display: grid;
-      grid-template-columns: repeat(3, 34px);
-      grid-template-rows: repeat(2, 34px);
-      gap: 4px;
-    }
-    .arrow-pad button {
-      width: 34px; height: 34px;
-      padding: 0;
-      font-size: 1rem;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .arrow-pad { display: grid; grid-template-columns: repeat(3, 34px); grid-template-rows: repeat(2, 34px); gap: 4px; }
+    .arrow-pad button { width: 34px; height: 34px; padding: 0; font-size: 1rem; display: flex; align-items: center; justify-content: center; }
     .arrow-pad .spacer { visibility: hidden; }
 
-    /* ─── SAVE SHAPE ────────────────────────────────────────────────── */
-    .save-row {
-      display: flex; gap: 8px; margin-top: 14px; align-items: center;
-    }
-    input[type="text"] {
-      font-family: inherit;
-      font-size: .8rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      color: var(--text);
-      padding: 6px 10px;
-      flex: 1;
-      outline: none;
-      transition: border-color .15s;
-    }
+    .save-row { display: flex; gap: 8px; margin-top: 14px; align-items: center; }
+    input[type="text"] { font-family: inherit; font-size: .8rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); padding: 6px 10px; flex: 1; outline: none; transition: border-color .15s; }
     input[type="text"]:focus { border-color: var(--accent); }
 
-    /* ─── SHAPES LIST ───────────────────────────────────────────────── */
-    .panel-title {
-      font-size: .65rem;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    .io-row {
-      display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
-    }
-    .io-row button {
-      flex: 1;
-      font-size: .68rem;
-      padding: 5px 6px;
-      letter-spacing: .05em;
-    }
+    .note-selector { margin-top: 20px; }
+    .panel-title { font-size: .65rem; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    .note-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .note-grid button { width: 38px; height: 38px; padding: 0; font-size: .75rem; font-weight: bold; }
+    .note-grid button.selected-note { background: var(--accent2); color: #111; border-color: var(--accent2); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
 
-    .shapes-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      max-height: 320px;
-      overflow-y: auto;
-    }
-    .shape-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 6px 8px;
-      cursor: pointer;
-      transition: border-color .15s;
-    }
-    .shape-item:hover { border-color: var(--accent); }
-    .shape-item.editing { border-color: #e84b4b; background: #1e1010; }
-    .shape-item span {
-      flex: 1;
-      font-size: .8rem;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .shape-item button {
-      padding: 2px 8px;
-      font-size: .65rem;
-      flex-shrink: 0;
-    }
-
-    /* ─── NOTE SELECTOR ─────────────────────────────────────────────── */
-    .note-selector {
-      margin-top: 20px;
-    }
-    .note-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-top: 8px;
-    }
-    .note-grid button {
-      width: 38px; height: 38px;
-      padding: 0;
-      font-size: .75rem;
-      font-weight: bold;
-    }
-    .note-grid button.selected-note {
-      background: var(--accent2);
-      color: #111;
-      border-color: var(--accent2);
-    }
-
-    /* ─── DIVIDERS ──────────────────────────────────────────────────── */
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 16px 0;
-    }
-
-    /* ─── SCROLLBAR ─────────────────────────────────────────────────── */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: var(--bg); }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
-    /* ─── TOAST ─────────────────────────────────────────────────────── */
-    #toast {
-      position: fixed;
-      bottom: 24px; right: 24px;
-      background: var(--accent);
-      color: #111;
-      font-size: .75rem;
-      letter-spacing: .08em;
-      padding: 8px 16px;
-      border-radius: var(--radius);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .3s;
-      z-index: 999;
-    }
+    #toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent); color: #111; font-size: .75rem; letter-spacing: .08em; padding: 8px 16px; border-radius: var(--radius); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 999; }
     #toast.show { opacity: 1; }
 
-    /* ─── BACK LINK ─────────────────────────────────────────────────── */
-    .back-link {
-      display: inline-block;
-      margin-bottom: 20px;
-      font-size: .72rem;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      text-decoration: none;
-      transition: color .15s;
-    }
+    .back-link { display: inline-block; margin-bottom: 20px; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-decoration: none; transition: color .15s; }
     .back-link:hover { color: var(--accent); }
+
+    /* ─── TABS ── */
+    .tab-bar { display: flex; gap: 4px; margin-bottom: 12px; }
+    .tab-bar button { flex: 1; padding: 5px 8px; font-size: .68rem; }
+
+    /* ─── SHAPES LIST + DnD ── */
+    .io-row { display: flex; gap: 6px; margin-bottom: 10px; }
+    .io-row button { flex: 1; font-size: .68rem; padding: 5px 6px; letter-spacing: .05em; }
+    .shapes-list { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
+    .shape-item { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; cursor: pointer; transition: border-color .15s; user-select: none; }
+    .shape-item:hover { border-color: var(--accent); }
+    .shape-item.editing { border-color: #e84b4b; background: #1e1010; }
+    .shape-item.dragging { opacity: .3; }
+    .shape-item.drag-over { border-color: var(--accent); border-style: dashed; background: #1e1e10; }
+    .shape-item .sname { flex: 1; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .shape-item button { padding: 2px 8px; font-size: .65rem; flex-shrink: 0; }
+    .drag-handle { color: var(--muted); cursor: grab; font-size: .9rem; padding: 0 2px; flex-shrink: 0; }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* ─── SESSIONS ── */
+    .sessions-list { display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow-y: auto; }
+    .session-item { display: flex; align-items: center; gap: 5px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 8px; transition: border-color .15s; }
+    .session-item:hover { border-color: var(--accent); }
+    .session-item .sname { flex: 1; font-size: .8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session-item .scount { font-size: .65rem; color: var(--muted); flex-shrink: 0; }
+    .session-item button { padding: 2px 7px; font-size: .65rem; flex-shrink: 0; }
+
+    .session-editor { background: #101014; border: 1px solid var(--accent); border-radius: var(--radius); padding: 10px; margin-bottom: 10px; }
+    .editor-label { font-size: .6rem; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+    .session-editor input[type="text"] { width: 100%; margin-bottom: 8px; }
+    .shape-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; max-height: 80px; overflow-y: auto; }
+    .shape-tag { font-family: inherit; font-size: .68rem; padding: 3px 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 4px; cursor: pointer; letter-spacing: .04em; transition: border-color .1s, color .1s; }
+    .shape-tag:hover { border-color: var(--accent2); color: var(--accent2); }
+    .session-shapes-queue { display: flex; flex-direction: column; gap: 3px; margin-bottom: 8px; max-height: 110px; overflow-y: auto; }
+    .session-shape-row { display: flex; align-items: center; gap: 4px; font-size: .75rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; }
+    .session-shape-row span { flex: 1; }
+    .session-shape-row .idx { flex: 0; color: var(--muted); font-size: .65rem; min-width: 16px; }
+    .session-shape-row button { padding: 1px 6px; font-size: .6rem; }
+    .editor-actions { display: flex; gap: 6px; margin-top: 4px; }
+    .editor-actions button { flex: 1; }
+
+    /* ─── SLIDE OVERLAY ── */
+    #slideOverlay { position: fixed; bottom: 0; left: 0; right: 0; background: #080810; border-top: 2px solid var(--accent); padding: 18px 24px 22px; z-index: 200; transform: translateY(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+    #slideOverlay.open { transform: translateY(0); }
+    .slide-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .slide-title { font-size: .7rem; letter-spacing: .2em; text-transform: uppercase; color: var(--accent); }
+    .slide-body { display: flex; gap: 32px; flex-wrap: wrap; align-items: center; }
+    .slide-left { flex: 1; min-width: 160px; text-align: center; }
+    .beat-dots { display: flex; gap: 8px; justify-content: center; margin-bottom: 10px; min-height: 18px; }
+    .beat-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--border); transition: background .06s, transform .06s; }
+    .beat-dot.first { width: 12px; height: 12px; }
+    .beat-dot.on { background: var(--accent); transform: scale(1.4); }
+    .slide-chord-name { font-size: 2.8rem; font-weight: bold; letter-spacing: -.02em; color: var(--accent); line-height: 1; }
+    .slide-chord-nav { margin-top: 8px; display: flex; justify-content: center; gap: 12px; font-size: .72rem; color: var(--muted); }
+    .slide-right { display: flex; flex-direction: column; gap: 10px; min-width: 220px; }
+    .slide-row { display: flex; align-items: center; gap: 8px; }
+    .slide-row label { width: 80px; color: var(--muted); font-size: .65rem; letter-spacing: .08em; text-transform: uppercase; flex-shrink: 0; }
+    .slide-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+    .slide-row input[type="number"] { width: 52px; font-family: inherit; font-size: .8rem; background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 3px 6px; outline: none; text-align: center; }
+    .slide-row input[type="number"]:focus { border-color: var(--accent); }
+    .beats-btns { display: flex; gap: 4px; }
+    .beats-btns button { width: 30px; height: 26px; padding: 0; font-size: .72rem; }
+    select.slide-select { font-family: inherit; font-size: .78rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); padding: 4px 8px; outline: none; cursor: pointer; flex: 1; }
+    select.slide-select:focus { border-color: var(--accent); }
+    .slide-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .slide-actions button { flex: 1; font-size: .85rem; padding: 8px; }
   </style>
 </head>
 <body>
 
 <a class="back-link" href="../index.html">← Exp Lab</a>
-
 <h1>🎸 Guitar Shape Builder</h1>
 <p class="subtitle">Standard tuning · E A D G B E · 12 frets</p>
 
 <div class="layout">
-  <!-- ── LEFT: fretboard + controls ── -->
   <div class="left">
-
     <div class="fretboard-wrap">
       <table class="fretboard" id="fretboard"></table>
     </div>
 
-    <!-- Arrow pad + reset + show-notes toggle -->
     <div class="controls">
       <div class="arrow-pad">
         <div class="spacer"></div>
-        <button onclick="shiftShape(0,-1)" title="Su">▲</button>
+        <button onclick="shiftShape(0,-1)">▲</button>
         <div class="spacer"></div>
-        <button onclick="shiftShape(-1,0)" title="Sinistra">◀</button>
-        <button onclick="shiftShape(0,1)"  title="Giù">▼</button>
-        <button onclick="shiftShape(1,0)"  title="Destra">▶</button>
+        <button onclick="shiftShape(-1,0)">◀</button>
+        <button onclick="shiftShape(0,1)">▼</button>
+        <button onclick="shiftShape(1,0)">▶</button>
       </div>
-
       <button id="btnReset" onclick="resetBoard()">⟳ Reset</button>
-      <button id="btnShowNotes" onclick="toggleShowNotes()">♩ Mostra note</button>
+      <button id="btnShowNotes" onclick="toggleShowNotes()">♩ Note</button>
       <button id="btnRootMode" class="root-mode" onclick="toggleRootMode()">● Root</button>
       <button id="btnEnharmonic" onclick="toggleEnharmonic()"># ↔ b</button>
+      <button onclick="openSlide()">▶ Slide</button>
     </div>
 
-    <!-- Save shape / Edit mode -->
     <div class="save-row">
       <input type="text" id="shapeName" placeholder="Nome shape…" maxlength="40"/>
       <button id="btnSave" onclick="saveShape()">💾 Salva</button>
       <button id="btnCancelEdit" onclick="cancelEdit()" class="danger" style="display:none">✕ Annulla</button>
     </div>
 
-    <!-- Note selector -->
     <div class="note-selector">
       <hr class="divider"/>
       <div class="panel-title">Seleziona per nota</div>
       <div class="note-grid" id="noteGrid"></div>
     </div>
-
   </div>
 
-  <!-- ── RIGHT: saved shapes ── -->
   <div class="right">
-    <div class="panel-title">Shape salvate</div>
-    <div class="io-row">
-      <button onclick="exportShapes()" title="Esporta tutte le shape in un file JSON">⬇ Esporta</button>
-      <button onclick="document.getElementById('importFile').click()" title="Importa shape da file JSON">⬆ Importa</button>
-      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importShapes(event)"/>
+    <div class="tab-bar">
+      <button id="tabBtnShapes" class="active" onclick="switchTab('shapes')">Shape</button>
+      <button id="tabBtnSessions" onclick="switchTab('sessions')">Sessioni</button>
     </div>
-    <div class="shapes-list" id="shapesList"></div>
+
+    <div id="panelShapes">
+      <div class="io-row">
+        <button onclick="exportShapes()">⬇ Esporta</button>
+        <button onclick="document.getElementById('importFile').click()">⬆ Importa</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importShapes(event)"/>
+      </div>
+      <div class="shapes-list" id="shapesList"></div>
+    </div>
+
+    <div id="panelSessions" style="display:none">
+      <button style="width:100%;margin-bottom:10px" onclick="openSessionEditor(null)">+ Nuova sessione</button>
+      <div id="sessionEditor" style="display:none" class="session-editor">
+        <div class="editor-label" id="sessionEditorTitle">Nuova sessione</div>
+        <input type="text" id="sessionNameInput" placeholder="Nome sessione…" maxlength="40"/>
+        <div class="editor-label">Shape disponibili — clicca per aggiungere</div>
+        <div class="shape-tags" id="shapeTags" style="margin-top:4px"></div>
+        <div class="editor-label" style="margin-top:8px">Progressione</div>
+        <div class="session-shapes-queue" id="sessionShapesQueue" style="margin-top:4px"></div>
+        <div class="editor-actions">
+          <button onclick="saveSession()">💾 Salva</button>
+          <button class="danger" onclick="closeSessionEditor()">✕ Annulla</button>
+        </div>
+      </div>
+      <div class="sessions-list" id="sessionsList"></div>
+    </div>
+  </div>
+</div>
+
+<div id="slideOverlay">
+  <div class="slide-header">
+    <span class="slide-title">▶ Slide Mode</span>
+    <button onclick="closeSlide()">✕ Chiudi</button>
+  </div>
+  <div class="slide-body">
+    <div class="slide-left">
+      <div class="beat-dots" id="beatDots"></div>
+      <div class="slide-chord-name" id="slideChordName">—</div>
+      <div class="slide-chord-nav" id="slideChordNav"></div>
+    </div>
+    <div class="slide-right">
+      <div class="slide-row">
+        <label>Sessione</label>
+        <select class="slide-select" id="slideSessionSelect" onchange="onSlideSessionChange()">
+          <option value="">— scegli —</option>
+        </select>
+      </div>
+      <div class="slide-row">
+        <label>BPM</label>
+        <input type="range" id="slideBpmRange" min="40" max="200" value="80" oninput="syncBpm(this.value)"/>
+        <input type="number" id="slideBpmNum" min="40" max="200" value="80" oninput="syncBpm(this.value)"/>
+      </div>
+      <div class="slide-row">
+        <label>Beats/chord</label>
+        <div class="beats-btns" id="beatsBtns">
+          <button onclick="setBeatsPerChord(1)">1</button>
+          <button onclick="setBeatsPerChord(2)">2</button>
+          <button class="active" onclick="setBeatsPerChord(4)">4</button>
+          <button onclick="setBeatsPerChord(8)">8</button>
+        </div>
+      </div>
+      <div class="slide-row">
+        <label>Click</label>
+        <button id="btnAudioToggle" class="active" onclick="toggleSlideAudio()">🔊 On</button>
+      </div>
+    </div>
+  </div>
+  <div class="slide-actions">
+    <button id="btnSlidePlay" onclick="toggleSlidePlay()">▶ Play</button>
   </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-  /* ════════════════════════════════════════════════════════════════════
-     CONSTANTS & STATE
-  ════════════════════════════════════════════════════════════════════ */
+  /* ── CONSTANTS ── */
+  const STRING_NAMES = ['e','B','G','D','A','E'];
+  const STRING_OPEN  = [4, 11, 7, 2, 9, 4];
+  const NOTES_SHARP  = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const NOTES_FLAT   = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+  const NUM_STRINGS  = 6;
+  const NUM_FRETS    = 12;
+  const MARKERS      = [3, 5, 7, 9, 12];
 
-  const STRING_NAMES  = ['e','B','G','D','A','E'];
-  const STRING_OPEN   = [4, 11, 7, 2, 9, 4];
-  const NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const NOTES_FLAT  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
-  let useFlats = false;
+  let useFlats = false, showNotes = false, rootMode = false;
+  let activeManual = new Set(), nutState = new Map(), rootSet = new Set();
+  let editingShape = null, activeNoteFilter = null;
+
   function getNoteArray() { return useFlats ? NOTES_FLAT : NOTES_SHARP; }
-  const NUM_STRINGS   = 6;
-  const NUM_FRETS     = 12;
-  const MARKERS       = [3, 5, 7, 9, 12];
+  function getNote(s, f)  { return getNoteArray()[(STRING_OPEN[s] + f) % 12]; }
 
-  let activeManual = new Set();
-  let nutState = new Map();
-  let rootSet = new Set();
-  let rootMode = false;
-  let editingShape = null;
-  let activeNoteFilter = null;
-  let showNotes = false;
-
-  /* ════════════════════════════════════════════════════════════════════
-     NOTE CALCULATION
-  ════════════════════════════════════════════════════════════════════ */
-
-  function getNote(strIdx, fret) {
-    return getNoteArray()[(STRING_OPEN[strIdx] + fret) % 12];
-  }
-
-  /* ════════════════════════════════════════════════════════════════════
-     BUILD FRETBOARD TABLE
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── BUILD FRETBOARD ── */
   function buildFretboard() {
     const table = document.getElementById('fretboard');
     table.innerHTML = '';
-
-    const markerRow = table.insertRow();
-    const emptyTh = document.createElement('th');
-    emptyTh.className = 'fret-num';
-    markerRow.appendChild(emptyTh);
-
+    const hdr = table.insertRow();
+    const th0 = document.createElement('th'); th0.className = 'fret-num'; hdr.appendChild(th0);
     for (let f = 0; f <= NUM_FRETS; f++) {
-      const th = document.createElement('th');
-      th.className = 'fret-num';
-      if (f === 0) {
-        th.textContent = '';
-      } else {
-        th.textContent = f;
-        if (MARKERS.includes(f)) {
-          const dot = document.createElement('span');
-          dot.className = 'fret-marker';
-          th.appendChild(dot);
-        }
-      }
-      markerRow.appendChild(th);
+      const th = document.createElement('th'); th.className = 'fret-num';
+      th.textContent = f || '';
+      if (f && MARKERS.includes(f)) { const m = document.createElement('span'); m.className = 'fret-marker'; th.appendChild(m); }
+      hdr.appendChild(th);
     }
-
     for (let s = 0; s < NUM_STRINGS; s++) {
       const tr = table.insertRow();
-
-      const label = tr.insertCell();
-      label.className = 'string-label';
-      label.textContent = STRING_NAMES[s];
-
+      const lbl = tr.insertCell(); lbl.className = 'string-label'; lbl.textContent = STRING_NAMES[s];
       for (let f = 0; f <= NUM_FRETS; f++) {
-        const td = tr.insertCell();
-        td.dataset.str  = s;
-        td.dataset.fret = f;
-
+        const td = tr.insertCell(); td.dataset.str = s; td.dataset.fret = f;
         if (f === 0) {
-          td.className = 'fret nut';
-          td.addEventListener('click', () => toggleNut(s));
-          const openSym = document.createElement('div');
-          openSym.className = 'open-symbol';
-          td.appendChild(openSym);
-          const muteSym = document.createElement('div');
-          muteSym.className = 'mute-symbol';
-          muteSym.textContent = '✕';
-          td.appendChild(muteSym);
+          td.className = 'fret nut'; td.addEventListener('click', () => toggleNut(s));
+          const o = document.createElement('div'); o.className = 'open-symbol'; td.appendChild(o);
+          const x = document.createElement('div'); x.className = 'mute-symbol'; x.textContent = '✕'; td.appendChild(x);
         } else {
-          td.className = 'fret';
-          td.addEventListener('click', () => toggleManual(s, f));
+          td.className = 'fret'; td.addEventListener('click', () => toggleManual(s, f));
         }
-
-        const dot = document.createElement('div');
-        dot.className = 'dot';
-        td.appendChild(dot);
+        const dot = document.createElement('div'); dot.className = 'dot'; td.appendChild(dot);
       }
     }
-
-    renderNuts();
-    renderBoard();
+    renderNuts(); renderBoard();
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     RENDER BOARD
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── RENDER ── */
   function renderBoard() {
     const noteSet = new Set();
     if (activeNoteFilter) {
-      for (let s = 0; s < NUM_STRINGS; s++) {
-        for (let f = 0; f <= NUM_FRETS; f++) {
+      for (let s = 0; s < NUM_STRINGS; s++)
+        for (let f = 0; f <= NUM_FRETS; f++)
           if (getNote(s, f) === activeNoteFilter) noteSet.add(`${s}-${f}`);
-        }
-      }
     }
-
-    const cells = document.querySelectorAll('td.fret:not(.nut)');
-    cells.forEach(td => {
-      const s = +td.dataset.str;
-      const f = +td.dataset.fret;
-      const key = `${s}-${f}`;
-
-      const isManual = activeManual.has(key);
-      const isNote   = noteSet.has(key);
-      const isRoot   = rootSet.has(key);
-
+    document.querySelectorAll('td.fret:not(.nut)').forEach(td => {
+      const s = +td.dataset.str, f = +td.dataset.fret, key = `${s}-${f}`;
+      const isManual = activeManual.has(key), isNote = noteSet.has(key), isRoot = rootSet.has(key);
       td.classList.toggle('active-manual', isManual);
       td.classList.toggle('active-note',   isNote);
       td.classList.toggle('active-root',   isRoot && isManual);
-
-      const dot = td.querySelector('.dot');
-      const visible = isManual || isNote;
-
+      const dot = td.querySelector('.dot'), visible = isManual || isNote;
       if (showNotes && !visible) {
-        dot.style.display    = 'flex';
-        dot.style.color      = '#555';
-        dot.style.background = 'transparent';
-        dot.style.boxShadow  = 'none';
-        dot.style.fontSize   = '.55rem';
-        dot.textContent      = getNote(s, f);
+        dot.style.cssText = 'display:flex;color:#555;background:transparent;box-shadow:none;font-size:.55rem';
+        dot.textContent = getNote(s, f);
       } else if (visible) {
-        dot.style.display    = 'flex';
-        dot.style.color      = '';
-        dot.style.background = '';
-        dot.style.boxShadow  = '';
-        dot.style.fontSize   = '.62rem';
-        dot.textContent      = getNote(s, f);
+        dot.style.cssText = 'display:flex;font-size:.62rem';
+        dot.textContent = getNote(s, f);
       } else {
-        dot.style.display    = 'none';
-        dot.style.color      = '';
-        dot.style.background = '';
-        dot.style.boxShadow  = '';
-        dot.style.fontSize   = '';
-        dot.textContent      = '';
+        dot.style.cssText = 'display:none'; dot.textContent = '';
       }
     });
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     TOGGLE MANUAL FRET
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── FRET TOGGLE ── */
+  function clearString(s) {
+    activeManual.forEach(k => { if (k.startsWith(s + '-')) { activeManual.delete(k); rootSet.delete(k); } });
+  }
   function toggleManual(s, f) {
     const key = `${s}-${f}`;
-
     if (rootMode) {
-      if (!activeManual.has(key)) {
-        clearString(s);
-        activeManual.add(key);
-      }
-      if (rootSet.has(key)) {
-        rootSet.delete(key);
-      } else {
-        rootSet.forEach(k => { if (k.startsWith(s + '-')) rootSet.delete(k); });
-        rootSet.add(key);
-      }
-      renderBoard();
-      return;
+      if (!activeManual.has(key)) { clearString(s); activeManual.add(key); }
+      if (rootSet.has(key)) rootSet.delete(key);
+      else { rootSet.forEach(k => { if (k.startsWith(s + '-')) rootSet.delete(k); }); rootSet.add(key); }
+      renderBoard(); return;
     }
-
-    if (activeManual.has(key)) {
-      activeManual.delete(key);
-      rootSet.delete(key);
-    } else {
-      clearString(s);
-      activeManual.add(key);
-    }
+    if (activeManual.has(key)) { activeManual.delete(key); rootSet.delete(key); }
+    else { clearString(s); activeManual.add(key); }
     renderBoard();
   }
 
-  function clearString(s) {
-    activeManual.forEach(k => {
-      if (k.startsWith(s + '-')) {
-        activeManual.delete(k);
-        rootSet.delete(k);
-      }
-    });
-  }
-
-  /* ════════════════════════════════════════════════════════════════════
-     ROOT MODE & ONE-PER-STRING
-  ════════════════════════════════════════════════════════════════════ */
-
-  function toggleRootMode() {
-    rootMode = !rootMode;
-    document.getElementById('btnRootMode').classList.toggle('active', rootMode);
-  }
-
-  /* ════════════════════════════════════════════════════════════════════
-     TOGGLE NUT (open string / mute)
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── NUT ── */
   function toggleNut(s) {
     const cur = nutState.get(s) || null;
-    if      (cur === null)   nutState.set(s, 'open');
+    if (cur === null) nutState.set(s, 'open');
     else if (cur === 'open') nutState.set(s, 'mute');
-    else                     nutState.delete(s);
+    else nutState.delete(s);
     renderNuts();
   }
-
   function renderNuts() {
     document.querySelectorAll('td.fret.nut').forEach(td => {
-      const s = +td.dataset.str;
-      const state = nutState.get(s) || null;
+      const state = nutState.get(+td.dataset.str) || null;
       td.classList.toggle('open-active', state === 'open');
       td.classList.toggle('mute-active', state === 'mute');
     });
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     SHIFT SHAPE
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── SHIFT ── */
   function shiftShape(dFret, dStr) {
-    if (activeManual.size === 0) return;
-
-    const coords = [...activeManual].map(k => {
-      const [s, f] = k.split('-').map(Number);
-      return { s, f };
-    });
-
-    const newCoords = coords.map(({ s, f }) => ({ s: s + dStr, f: f + dFret }));
-    for (const { s, f } of newCoords) {
-      if (s < 0 || s >= NUM_STRINGS) return;
-      if (f < 1 || f > NUM_FRETS)    return;
-    }
-
-    activeManual.clear();
-    for (const { s, f } of newCoords) {
-      activeManual.add(`${s}-${f}`);
-    }
-    renderBoard();
+    if (!activeManual.size) return;
+    const coords = [...activeManual].map(k => { const [s,f] = k.split('-').map(Number); return {s,f}; });
+    const nc = coords.map(({s,f}) => ({s:s+dStr, f:f+dFret}));
+    for (const {s,f} of nc) if (s<0||s>=NUM_STRINGS||f<1||f>NUM_FRETS) return;
+    activeManual.clear(); nc.forEach(({s,f}) => activeManual.add(`${s}-${f}`)); renderBoard();
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     RESET
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── RESET ── */
   function resetBoard() {
-    activeManual.clear();
-    nutState.clear();
-    rootSet.clear();
-    rootMode = false;
+    activeManual.clear(); nutState.clear(); rootSet.clear(); rootMode = false;
     document.getElementById('btnRootMode').classList.remove('active');
-    renderNuts();
-    activeNoteFilter = null;
+    renderNuts(); activeNoteFilter = null;
     document.querySelectorAll('.note-grid button').forEach(b => b.classList.remove('selected-note'));
     renderBoard();
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     ENHARMONIC & SHOW NOTES
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── TOGGLES ── */
+  function toggleRootMode() { rootMode = !rootMode; document.getElementById('btnRootMode').classList.toggle('active', rootMode); }
+  function toggleShowNotes() { showNotes = !showNotes; document.getElementById('btnShowNotes').classList.toggle('active', showNotes); renderBoard(); }
   function toggleEnharmonic() {
     useFlats = !useFlats;
     const btn = document.getElementById('btnEnharmonic');
     btn.textContent = useFlats ? 'b ↔ #' : '# ↔ b';
     btn.classList.toggle('active', useFlats);
-    if (activeNoteFilter !== null) activeNoteFilter = null;
-    buildNoteGrid();
-    renderBoard();
+    if (activeNoteFilter) activeNoteFilter = null;
+    buildNoteGrid(); renderBoard();
   }
 
-  function toggleShowNotes() {
-    showNotes = !showNotes;
-    document.getElementById('btnShowNotes').classList.toggle('active', showNotes);
-    renderBoard();
-  }
+  /* ── SHAPES localStorage ── */
+  function getShapes()    { return JSON.parse(localStorage.getItem('guitar_shapes') || '[]'); }
+  function putShapes(arr) { localStorage.setItem('guitar_shapes', JSON.stringify(arr)); }
 
-  /* ════════════════════════════════════════════════════════════════════
-     SAVE / LOAD / DELETE SHAPES  (localStorage)
-  ════════════════════════════════════════════════════════════════════ */
-
-  function getShapes() {
-    return JSON.parse(localStorage.getItem('guitar_shapes') || '[]');
-  }
-
-  function putShapes(shapes) {
-    localStorage.setItem('guitar_shapes', JSON.stringify(shapes));
+  function serializeBoard() {
+    const coords = [...activeManual].map(k => {
+      const [s,f] = k.split('-').map(Number);
+      return { s, f, root: rootSet.has(k) || undefined };
+    });
+    nutState.forEach((state, s) => coords.push({ s, f: 0, nut: state }));
+    return coords;
   }
 
   function saveShape() {
     const name = document.getElementById('shapeName').value.trim();
     if (!name) { showToast('Inserisci un nome!'); return; }
-    if (activeManual.size === 0 && nutState.size === 0) {
-      showToast('Seleziona almeno un fret!'); return;
-    }
-
-    const coords = [...activeManual].map(k => {
-      const [s, f] = k.split('-').map(Number);
-      return { s, f, root: rootSet.has(k) || undefined };
-    });
-    nutState.forEach((state, s) => coords.push({ s, f: 0, nut: state }));
-
+    if (!activeManual.size && !nutState.size) { showToast('Seleziona almeno un fret!'); return; }
+    const coords = serializeBoard();
     const shapes = getShapes();
-
     if (editingShape !== null) {
       const idx = shapes.findIndex(sh => sh.name === editingShape);
       if (idx !== -1) {
-        if (name !== editingShape && shapes.find(sh => sh.name === name)) {
-          showToast('Nome già esistente!'); return;
-        }
-        shapes[idx].name   = name;
-        shapes[idx].coords = coords;
+        if (name !== editingShape && shapes.find(sh => sh.name === name)) { showToast('Nome già esistente!'); return; }
+        shapes[idx] = { name, coords };
       }
-      editingShape = null;
       exitEditMode();
     } else {
       const idx = shapes.findIndex(sh => sh.name === name);
@@ -792,90 +442,84 @@
         shapes.push({ name, coords });
       }
     }
-
-    putShapes(shapes);
-    renderShapesList();
+    putShapes(shapes); renderShapesList();
     document.getElementById('shapeName').value = '';
     showToast(`"${name}" salvata!`);
   }
 
   function loadShape(coords) {
-    activeManual.clear();
-    nutState.clear();
-    rootSet.clear();
+    activeManual.clear(); nutState.clear(); rootSet.clear();
     coords.forEach(({ s, f, nut, root }) => {
-      if (f === 0 && nut) {
-        nutState.set(s, nut);
-      } else if (f > 0) {
-        const key = `${s}-${f}`;
-        activeManual.add(key);
-        if (root) rootSet.add(key);
-      }
+      if (f === 0 && nut) nutState.set(s, nut);
+      else if (f > 0) { const key = `${s}-${f}`; activeManual.add(key); if (root) rootSet.add(key); }
     });
-    renderNuts();
-    renderBoard();
+    renderNuts(); renderBoard();
   }
 
   function deleteShape(name) {
-    const shapes = getShapes().filter(sh => sh.name !== name);
-    putShapes(shapes);
-    renderShapesList();
-    showToast(`"${name}" eliminata`);
+    putShapes(getShapes().filter(sh => sh.name !== name));
+    renderShapesList(); showToast(`"${name}" eliminata`);
   }
+
+  /* ── SHAPES LIST with DnD ── */
+  let dragSrcIdx = null;
 
   function renderShapesList() {
     const container = document.getElementById('shapesList');
     const shapes = getShapes();
     container.innerHTML = '';
-
-    if (shapes.length === 0) {
-      container.innerHTML = '<span style="color:var(--muted);font-size:.75rem;">Nessuna shape salvata</span>';
-      return;
-    }
-
-    shapes.forEach(sh => {
+    if (!shapes.length) { container.innerHTML = '<span style="color:var(--muted);font-size:.75rem;">Nessuna shape salvata</span>'; return; }
+    shapes.forEach((sh, i) => {
       const item = document.createElement('div');
       item.className = 'shape-item' + (editingShape === sh.name ? ' editing' : '');
+      item.draggable = true;
+      item.dataset.index = i;
+
+      const handle = document.createElement('span');
+      handle.className = 'drag-handle'; handle.textContent = '⠿';
+      item.appendChild(handle);
 
       const span = document.createElement('span');
-      span.textContent = sh.name;
-      span.title = sh.name;
+      span.className = 'sname'; span.textContent = sh.name; span.title = sh.name;
       item.appendChild(span);
 
-      item.addEventListener('click', (e) => {
-        if (e.target.tagName !== 'BUTTON') {
-          if (editingShape === sh.name) return;
-          if (editingShape !== null) exitEditMode();
-          loadShape(sh.coords);
-        }
+      item.addEventListener('click', e => {
+        if (e.target.tagName === 'BUTTON' || e.target.className === 'drag-handle') return;
+        if (editingShape === sh.name) return;
+        if (editingShape) exitEditMode();
+        loadShape(sh.coords);
+      });
+      item.addEventListener('dragstart', e => {
+        dragSrcIdx = i; item.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      item.addEventListener('dragend', () => {
+        item.classList.remove('dragging');
+        document.querySelectorAll('.shape-item').forEach(el => el.classList.remove('drag-over'));
+      });
+      item.addEventListener('dragover', e => {
+        e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+        document.querySelectorAll('.shape-item').forEach(el => el.classList.remove('drag-over'));
+        item.classList.add('drag-over');
+      });
+      item.addEventListener('drop', e => {
+        e.preventDefault();
+        if (dragSrcIdx === null || dragSrcIdx === i) return;
+        const arr = getShapes(); const [moved] = arr.splice(dragSrcIdx, 1); arr.splice(i, 0, moved);
+        putShapes(arr); dragSrcIdx = null; renderShapesList();
       });
 
-      const edit = document.createElement('button');
-      edit.textContent = '✎';
-      edit.title = 'Modifica shape';
-      edit.addEventListener('click', (e) => {
-        e.stopPropagation();
-        enterEditMode(sh);
-      });
-      item.appendChild(edit);
+      const editBtn = document.createElement('button'); editBtn.textContent = '✎';
+      editBtn.addEventListener('click', e => { e.stopPropagation(); enterEditMode(sh); });
+      item.appendChild(editBtn);
 
-      const del = document.createElement('button');
-      del.textContent = '✕';
-      del.className = 'danger';
-      del.title = 'Elimina';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        deleteShape(sh.name);
-      });
-      item.appendChild(del);
+      const delBtn = document.createElement('button'); delBtn.textContent = '✕'; delBtn.className = 'danger';
+      delBtn.addEventListener('click', e => { e.stopPropagation(); deleteShape(sh.name); });
+      item.appendChild(delBtn);
 
       container.appendChild(item);
     });
   }
-
-  /* ════════════════════════════════════════════════════════════════════
-     EDIT SHAPE
-  ════════════════════════════════════════════════════════════════════ */
 
   function enterEditMode(sh) {
     loadShape(sh.coords);
@@ -887,125 +531,308 @@
     document.querySelector('.fretboard-wrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     showToast(`Modifica: "${sh.name}"`);
   }
-
   function exitEditMode() {
     editingShape = null;
     document.getElementById('shapeName').value = '';
     document.getElementById('btnSave').textContent = '💾 Salva';
     document.getElementById('btnSave').classList.remove('active');
     document.getElementById('btnCancelEdit').style.display = 'none';
+    renderShapesList();
   }
+  function cancelEdit() { exitEditMode(); resetBoard(); showToast('Modifica annullata'); }
 
-  function cancelEdit() {
-    exitEditMode();
-    resetBoard();
-    showToast('Modifica annullata');
-  }
-
-  /* ════════════════════════════════════════════════════════════════════
-     NOTE SELECTOR
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── NOTE GRID ── */
   function buildNoteGrid() {
-    const grid = document.getElementById('noteGrid');
-    grid.innerHTML = '';
+    const grid = document.getElementById('noteGrid'); grid.innerHTML = '';
     getNoteArray().forEach(note => {
       const btn = document.createElement('button');
-      btn.textContent = note;
-      btn.dataset.note = note;
-      btn.addEventListener('click', () => toggleNoteFilter(note));
+      btn.textContent = note; btn.dataset.note = note;
+      btn.addEventListener('click', () => {
+        activeNoteFilter = activeNoteFilter === note ? null : note;
+        grid.querySelectorAll('button').forEach(b => b.classList.toggle('selected-note', b.dataset.note === activeNoteFilter));
+        renderBoard();
+      });
       grid.appendChild(btn);
     });
   }
 
-  function toggleNoteFilter(note) {
-    activeNoteFilter = activeNoteFilter === note ? null : note;
-    document.querySelectorAll('.note-grid button').forEach(b => {
-      b.classList.toggle('selected-note', b.dataset.note === activeNoteFilter);
-    });
-    renderBoard();
-  }
-
-  /* ════════════════════════════════════════════════════════════════════
-     EXPORT / IMPORT JSON
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── EXPORT / IMPORT ── */
   function exportShapes() {
-    const shapes = getShapes();
-    if (shapes.length === 0) { showToast('Nessuna shape da esportare!'); return; }
-    const json = JSON.stringify({ version: 1, shapes }, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
+    const shapes = getShapes(); if (!shapes.length) { showToast('Nessuna shape!'); return; }
     const a = document.createElement('a');
-    a.href     = url;
-    a.download = 'guitar-shapes.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    a.href = URL.createObjectURL(new Blob([JSON.stringify({ version:1, shapes }, null, 2)], { type:'application/json' }));
+    a.download = 'guitar-shapes.json'; a.click();
     showToast(`${shapes.length} shape esportate!`);
   }
-
   function importShapes(event) {
-    const file = event.target.files[0];
-    if (!file) return;
+    const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
       try {
         const data = JSON.parse(e.target.result);
         const incoming = Array.isArray(data) ? data : (data.shapes || []);
-        if (!Array.isArray(incoming) || incoming.length === 0) {
-          showToast('File non valido o vuoto!'); return;
-        }
-        const existing = getShapes();
-        let added = 0, updated = 0;
+        if (!incoming.length) { showToast('File non valido!'); return; }
+        const existing = getShapes(); let added = 0, updated = 0;
         incoming.forEach(sh => {
           if (!sh.name || !Array.isArray(sh.coords)) return;
-          const idx = existing.findIndex(e => e.name === sh.name);
-          if (idx !== -1) { existing[idx] = sh; updated++; }
-          else { existing.push(sh); added++; }
+          const idx = existing.findIndex(x => x.name === sh.name);
+          if (idx !== -1) { existing[idx] = sh; updated++; } else { existing.push(sh); added++; }
         });
-        putShapes(existing);
-        renderShapesList();
-        showToast(`Importate: ${added} nuove, ${updated} aggiornate`);
-      } catch {
-        showToast('Errore nel file JSON!');
-      }
+        putShapes(existing); renderShapesList(); showToast(`+${added} nuove, ${updated} aggiornate`);
+      } catch { showToast('Errore JSON!'); }
       event.target.value = '';
     };
     reader.readAsText(file);
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     TOAST
-  ════════════════════════════════════════════════════════════════════ */
-
-  let toastTimer = null;
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  /* ── TABS ── */
+  function switchTab(tab) {
+    const s = tab === 'shapes';
+    document.getElementById('panelShapes').style.display   = s ? '' : 'none';
+    document.getElementById('panelSessions').style.display = s ? 'none' : '';
+    document.getElementById('tabBtnShapes').classList.toggle('active', s);
+    document.getElementById('tabBtnSessions').classList.toggle('active', !s);
   }
 
-  /* ════════════════════════════════════════════════════════════════════
-     KEYBOARD SUPPORT
-  ════════════════════════════════════════════════════════════════════ */
+  /* ── SESSIONS localStorage ── */
+  function getSessions()    { return JSON.parse(localStorage.getItem('guitar_sessions') || '[]'); }
+  function putSessions(arr) { localStorage.setItem('guitar_sessions', JSON.stringify(arr)); }
 
+  let sessionDraft = [], editingSessionName = null;
+
+  function openSessionEditor(session) {
+    editingSessionName = session ? session.name : null;
+    sessionDraft = session ? [...session.shapes] : [];
+    document.getElementById('sessionEditorTitle').textContent = session ? `Modifica: "${session.name}"` : 'Nuova sessione';
+    document.getElementById('sessionNameInput').value = session ? session.name : '';
+    document.getElementById('sessionEditor').style.display = '';
+    renderShapeTags(); renderSessionQueue();
+  }
+  function closeSessionEditor() {
+    document.getElementById('sessionEditor').style.display = 'none';
+    sessionDraft = []; editingSessionName = null;
+  }
+
+  function renderShapeTags() {
+    const c = document.getElementById('shapeTags'); c.innerHTML = '';
+    const shapes = getShapes();
+    if (!shapes.length) { c.innerHTML = '<span style="color:var(--muted);font-size:.72rem">Nessuna shape disponibile</span>'; return; }
+    shapes.forEach(sh => {
+      const tag = document.createElement('button');
+      tag.className = 'shape-tag'; tag.textContent = sh.name;
+      tag.addEventListener('click', () => { sessionDraft.push(sh.name); renderSessionQueue(); });
+      c.appendChild(tag);
+    });
+  }
+
+  function renderSessionQueue() {
+    const c = document.getElementById('sessionShapesQueue'); c.innerHTML = '';
+    if (!sessionDraft.length) { c.innerHTML = '<span style="color:var(--muted);font-size:.72rem">Nessuna shape aggiunta</span>'; return; }
+    sessionDraft.forEach((name, i) => {
+      const row = document.createElement('div'); row.className = 'session-shape-row';
+      const idx = document.createElement('span'); idx.className = 'idx'; idx.textContent = `${i+1}.`;
+      const lbl = document.createElement('span'); lbl.textContent = name;
+      const rem = document.createElement('button'); rem.textContent = '✕'; rem.className = 'danger';
+      rem.addEventListener('click', () => { sessionDraft.splice(i, 1); renderSessionQueue(); });
+      row.appendChild(idx); row.appendChild(lbl); row.appendChild(rem);
+      c.appendChild(row);
+    });
+  }
+
+  function saveSession() {
+    const name = document.getElementById('sessionNameInput').value.trim();
+    if (!name) { showToast('Inserisci un nome!'); return; }
+    if (!sessionDraft.length) { showToast('Aggiungi almeno una shape!'); return; }
+    const sessions = getSessions();
+    if (editingSessionName !== null) {
+      const idx = sessions.findIndex(s => s.name === editingSessionName);
+      if (idx !== -1) {
+        if (name !== editingSessionName && sessions.find(s => s.name === name)) { showToast('Nome già esistente!'); return; }
+        sessions[idx] = { name, shapes: [...sessionDraft] };
+      }
+    } else {
+      const idx = sessions.findIndex(s => s.name === name);
+      if (idx !== -1) {
+        if (!confirm(`"${name}" esiste già. Vuoi sovrascriverla?`)) return;
+        sessions[idx] = { name, shapes: [...sessionDraft] };
+      } else {
+        sessions.push({ name, shapes: [...sessionDraft] });
+      }
+    }
+    putSessions(sessions); closeSessionEditor();
+    renderSessionsList(); populateSlideSelect();
+    showToast(`Sessione "${name}" salvata!`);
+  }
+
+  function deleteSession(name) {
+    putSessions(getSessions().filter(s => s.name !== name));
+    renderSessionsList(); populateSlideSelect();
+    showToast(`"${name}" eliminata`);
+  }
+
+  function renderSessionsList() {
+    const c = document.getElementById('sessionsList'); c.innerHTML = '';
+    const sessions = getSessions();
+    if (!sessions.length) { c.innerHTML = '<span style="color:var(--muted);font-size:.75rem">Nessuna sessione salvata</span>'; return; }
+    sessions.forEach(sess => {
+      const item = document.createElement('div'); item.className = 'session-item';
+      const name = document.createElement('span'); name.className = 'sname'; name.textContent = sess.name; name.title = sess.name;
+      const count = document.createElement('span'); count.className = 'scount'; count.textContent = `${sess.shapes.length}`;
+      item.appendChild(name); item.appendChild(count);
+
+      const slideBtn = document.createElement('button'); slideBtn.textContent = '▶'; slideBtn.title = 'Avvia Slide';
+      slideBtn.addEventListener('click', e => { e.stopPropagation(); openSlide(sess.name); });
+
+      const editBtn = document.createElement('button'); editBtn.textContent = '✎';
+      editBtn.addEventListener('click', e => { e.stopPropagation(); openSessionEditor(sess); });
+
+      const delBtn = document.createElement('button'); delBtn.textContent = '✕'; delBtn.className = 'danger';
+      delBtn.addEventListener('click', e => { e.stopPropagation(); deleteSession(sess.name); });
+
+      item.appendChild(slideBtn); item.appendChild(editBtn); item.appendChild(delBtn);
+      c.appendChild(item);
+    });
+  }
+
+  /* ── SLIDE MODE ── */
+  let slideActive = false, slideChordIdx = 0, slideBeat = 0;
+  let slideBeats = 4, slideBPM = 80, slideAudioOn = true;
+  let slideTimer = null, slideShapes = [], audioCtx = null;
+
+  function resolveSession(name) {
+    const sess = getSessions().find(s => s.name === name); if (!sess) return [];
+    const all = getShapes();
+    return sess.shapes.map(n => all.find(sh => sh.name === n)).filter(Boolean);
+  }
+
+  function populateSlideSelect() {
+    const sel = document.getElementById('slideSessionSelect');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— scegli —</option>';
+    getSessions().forEach(s => {
+      const opt = document.createElement('option'); opt.value = s.name; opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+    if (cur) sel.value = cur;
+  }
+
+  function openSlide(preselect) {
+    populateSlideSelect();
+    if (preselect) { document.getElementById('slideSessionSelect').value = preselect; onSlideSessionChange(); }
+    document.getElementById('slideOverlay').classList.add('open');
+  }
+  function closeSlide() { stopSlide(); document.getElementById('slideOverlay').classList.remove('open'); }
+
+  function onSlideSessionChange() {
+    if (slideActive) stopSlide();
+    const name = document.getElementById('slideSessionSelect').value;
+    slideShapes = name ? resolveSession(name) : [];
+    slideChordIdx = 0; slideBeat = 0;
+    renderBeatDots(); renderSlideDisplay();
+    if (slideShapes.length) loadShape(slideShapes[0].coords);
+  }
+
+  function syncBpm(val) {
+    slideBPM = Math.max(40, Math.min(200, +val));
+    document.getElementById('slideBpmRange').value = slideBPM;
+    document.getElementById('slideBpmNum').value   = slideBPM;
+    if (slideActive) { stopSlide(); startSlide(); }
+  }
+
+  function setBeatsPerChord(n) {
+    slideBeats = n;
+    document.querySelectorAll('.beats-btns button').forEach(b => b.classList.toggle('active', +b.textContent === n));
+    renderBeatDots();
+    if (slideActive) { stopSlide(); startSlide(); }
+  }
+
+  function toggleSlideAudio() {
+    slideAudioOn = !slideAudioOn;
+    const btn = document.getElementById('btnAudioToggle');
+    btn.textContent = slideAudioOn ? '🔊 On' : '🔇 Off';
+    btn.classList.toggle('active', slideAudioOn);
+  }
+
+  function toggleSlidePlay() {
+    if (!slideActive && !slideShapes.length) { showToast('Scegli una sessione!'); return; }
+    if (slideActive) stopSlide(); else startSlide();
+  }
+
+  function startSlide() {
+    slideActive = true; slideBeat = 0;
+    document.getElementById('btnSlidePlay').textContent = '⏸ Pausa';
+    document.getElementById('btnSlidePlay').classList.add('active');
+    onBeat();
+    slideTimer = setInterval(onBeat, 60000 / slideBPM);
+  }
+
+  function stopSlide() {
+    slideActive = false; clearInterval(slideTimer); slideTimer = null;
+    document.getElementById('btnSlidePlay').textContent = '▶ Play';
+    document.getElementById('btnSlidePlay').classList.remove('active');
+    renderBeatDots();
+  }
+
+  function onBeat() {
+    if (slideBeat === 0) { loadShape(slideShapes[slideChordIdx].coords); renderSlideDisplay(); }
+    if (slideAudioOn) playClick(slideBeat === 0);
+    renderBeatDots(slideBeat);
+    slideBeat++;
+    if (slideBeat >= slideBeats) { slideBeat = 0; slideChordIdx = (slideChordIdx + 1) % slideShapes.length; }
+  }
+
+  function renderSlideDisplay() {
+    const nameEl = document.getElementById('slideChordName');
+    const navEl  = document.getElementById('slideChordNav');
+    if (!slideShapes.length) { nameEl.textContent = '—'; navEl.innerHTML = ''; return; }
+    const n = slideShapes.length;
+    nameEl.textContent = slideShapes[slideChordIdx].name;
+    const prev = slideShapes[(slideChordIdx - 1 + n) % n].name;
+    const next = slideShapes[(slideChordIdx + 1) % n].name;
+    navEl.innerHTML = `<span>${prev}</span><span style="color:var(--border)">→</span><span>${next}</span>`;
+  }
+
+  function renderBeatDots(active) {
+    const c = document.getElementById('beatDots'); c.innerHTML = '';
+    for (let i = 0; i < slideBeats; i++) {
+      const d = document.createElement('div');
+      d.className = 'beat-dot' + (i === 0 ? ' first' : '') + (i === active ? ' on' : '');
+      c.appendChild(d);
+    }
+  }
+
+  function playClick(down) {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.frequency.value = down ? 1100 : 880;
+      gain.gain.setValueAtTime(down ? 0.35 : 0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.06);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.06);
+    } catch(e) {}
+  }
+
+  /* ── TOAST & KEYBOARD ── */
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+  }
   document.addEventListener('keydown', e => {
-    if (document.activeElement.tagName === 'INPUT') return;
-    if (e.key === 'ArrowRight') { e.preventDefault(); shiftShape(1, 0); }
+    if (['INPUT','SELECT'].includes(document.activeElement.tagName)) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); shiftShape(1,0); }
     if (e.key === 'ArrowLeft')  { e.preventDefault(); shiftShape(-1,0); }
     if (e.key === 'ArrowUp')    { e.preventDefault(); shiftShape(0,-1); }
-    if (e.key === 'ArrowDown')  { e.preventDefault(); shiftShape(0, 1); }
+    if (e.key === 'ArrowDown')  { e.preventDefault(); shiftShape(0,1); }
   });
 
-  /* ════════════════════════════════════════════════════════════════════
-     INIT
-  ════════════════════════════════════════════════════════════════════ */
-
+  /* ── INIT ── */
   buildFretboard();
   buildNoteGrid();
   renderShapesList();
+  renderSessionsList();
+  renderBeatDots();
 </script>
 </body>
 </html>
