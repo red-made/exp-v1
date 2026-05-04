@@ -427,7 +427,6 @@
       <button id="btnReset" onclick="resetBoard()">⟳ Reset</button>
       <button id="btnShowNotes" onclick="toggleShowNotes()">♩ Mostra note</button>
       <button id="btnRootMode" class="root-mode" onclick="toggleRootMode()">● Root</button>
-      <button id="btnOnePerStr" onclick="toggleOnePerString()" title="Una nota per corda">1/corda</button>
       <button id="btnEnharmonic" onclick="toggleEnharmonic()"># ↔ b</button>
     </div>
 
@@ -480,7 +479,6 @@
   let nutState = new Map();
   let rootSet = new Set();
   let rootMode = false;
-  let onePerString = false;
   let editingShape = null;
   let activeNoteFilter = null;
   let showNotes = false;
@@ -624,7 +622,7 @@
 
     if (rootMode) {
       if (!activeManual.has(key)) {
-        if (onePerString) clearString(s);
+        clearString(s);
         activeManual.add(key);
       }
       if (rootSet.has(key)) {
@@ -641,7 +639,7 @@
       activeManual.delete(key);
       rootSet.delete(key);
     } else {
-      if (onePerString) clearString(s);
+      clearString(s);
       activeManual.add(key);
     }
     renderBoard();
@@ -663,20 +661,6 @@
   function toggleRootMode() {
     rootMode = !rootMode;
     document.getElementById('btnRootMode').classList.toggle('active', rootMode);
-  }
-
-  function toggleOnePerString() {
-    onePerString = !onePerString;
-    document.getElementById('btnOnePerStr').classList.toggle('active', onePerString);
-    if (onePerString) {
-      const seen = new Set();
-      [...activeManual].forEach(k => {
-        const s = k.split('-')[0];
-        if (seen.has(s)) { activeManual.delete(k); rootSet.delete(k); }
-        else seen.add(s);
-      });
-      renderBoard();
-    }
   }
 
   /* ════════════════════════════════════════════════════════════════════
@@ -802,6 +786,7 @@
     } else {
       const idx = shapes.findIndex(sh => sh.name === name);
       if (idx !== -1) {
+        if (!confirm(`"${name}" esiste già. Vuoi sovrascriverla?`)) return;
         shapes[idx].coords = coords;
       } else {
         shapes.push({ name, coords });
