@@ -190,6 +190,8 @@
       <button data-cm="seventh" onclick="setColorMode('seventh')">● 7th</button>
       <button data-cm="custom"  onclick="setColorMode('custom')">● Custom</button>
       <button id="btnEnharmonic" onclick="toggleEnharmonic()"># ↔ b</button>
+      <button id="btnIntervals" onclick="toggleIntervals()">𝄞 Interv.</button>
+      <button onclick="playShape()">▶ Suona</button>
       <button onclick="openSlide()">▶ Slide</button>
     </div>
 
@@ -203,6 +205,11 @@
       <hr class="divider"/>
       <div class="panel-title">Seleziona per nota</div>
       <div class="note-grid" id="noteGrid"></div>
+      <div id="intervalRootSection" style="display:none">
+        <hr class="divider"/>
+        <div class="panel-title">Root per intervalli</div>
+        <div class="note-grid" id="intervalRootGrid"></div>
+      </div>
     </div>
   </div>
 
@@ -294,8 +301,11 @@
   const NUM_STRINGS  = 6;
   const NUM_FRETS    = 15;
   const MARKERS      = [3, 5, 7, 9, 12, 15];
+  const INTERVALS    = ['1','♭2','2','♭3','3','4','♭5','5','♭6','6','♭7','7'];
+  const STRING_FREQ  = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41]; // e B G D A E
 
   let useFlats = false, showNotes = false, colorMode = null;
+  let showIntervals = false, intervalRootIdx = null;
   let activeManual = new Set(), nutState = new Map(), colorMap = new Map();
   let editingShape = null, activeNoteFilter = null;
 
@@ -340,6 +350,13 @@
         for (let f = 0; f <= NUM_FRETS; f++)
           if (getNote(s, f) === activeNoteFilter) noteSet.add(`${s}-${f}`);
     }
+    const label = (s, f) => {
+      if (showIntervals && intervalRootIdx !== null) {
+        const iv = ((STRING_OPEN[s] + f) % 12 - intervalRootIdx + 12) % 12;
+        return INTERVALS[iv];
+      }
+      return getNote(s, f);
+    };
     document.querySelectorAll('td.fret:not(.nut)').forEach(td => {
       const s = +td.dataset.str, f = +td.dataset.fret, key = `${s}-${f}`;
       const isManual = activeManual.has(key), isNote = noteSet.has(key);
@@ -353,10 +370,10 @@
       const dot = td.querySelector('.dot'), visible = isManual || isNote;
       if (showNotes && !visible) {
         dot.style.cssText = 'display:flex;color:#555;background:transparent;box-shadow:none;font-size:.55rem';
-        dot.textContent = getNote(s, f);
+        dot.textContent = label(s, f);
       } else if (visible) {
         dot.style.cssText = 'display:flex;font-size:.62rem';
-        dot.textContent = getNote(s, f);
+        dot.textContent = label(s, f);
       } else {
         dot.style.cssText = 'display:none'; dot.textContent = '';
       }
@@ -420,13 +437,36 @@
     document.querySelectorAll('button[data-cm]').forEach(b => b.classList.toggle('active', b.dataset.cm === colorMode));
   }
   function toggleShowNotes() { showNotes = !showNotes; document.getElementById('btnShowNotes').classList.toggle('active', showNotes); renderBoard(); }
+
+  function toggleIntervals() {
+    showIntervals = !showIntervals;
+    document.getElementById('btnIntervals').classList.toggle('active', showIntervals);
+    document.getElementById('intervalRootSection').style.display = showIntervals ? '' : 'none';
+    renderBoard();
+  }
+  function setIntervalRoot(idx) {
+    intervalRootIdx = intervalRootIdx === idx ? null : idx;
+    document.querySelectorAll('#intervalRootGrid button').forEach((b, i) =>
+      b.classList.toggle('selected-note', i === intervalRootIdx));
+    renderBoard();
+  }
+  function buildIntervalRootGrid() {
+    const grid = document.getElementById('intervalRootGrid'); grid.innerHTML = '';
+    getNoteArray().forEach((note, i) => {
+      const btn = document.createElement('button');
+      btn.textContent = note;
+      btn.classList.toggle('selected-note', i === intervalRootIdx);
+      btn.addEventListener('click', () => setIntervalRoot(i));
+      grid.appendChild(btn);
+    });
+  }
   function toggleEnharmonic() {
     useFlats = !useFlats;
     const btn = document.getElementById('btnEnharmonic');
     btn.textContent = useFlats ? 'b ↔ #' : '# ↔ b';
     btn.classList.toggle('active', useFlats);
     if (activeNoteFilter) activeNoteFilter = null;
-    buildNoteGrid(); renderBoard();
+    buildNoteGrid(); buildIntervalRootGrid(); renderBoard();
   }
 
   /* ── SHAPES localStorage ── */
@@ -840,6 +880,54 @@
     } catch(e) {}
   }
 
+  /* Karplus-Strong plucked string synthesis */
+  function karplusStrong(freq, duration, ctx) {
+    const sr = ctx.sampleRate;
+    const N  = Math.max(1, Math.round(sr / freq));
+    const total = Math.round(duration * sr);
+    const ks = new Float32Array(N);
+    for (let i = 0; i < N; i++) ks[i] = Math.random() * 2 - 1;
+    const out = new Float32Array(total);
+    for (let i = 0; i < total; i++) {
+      out[i] = ks[i % N];
+      ks[i % N] = 0.996 * 0.5 * (ks[i % N] + ks[(i + 1) % N]);
+    }
+    const buf = ctx.createBuffer(1, total, sr);
+    buf.getChannelData(0).set(out);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    return src;
+  }
+
+  function playShape() {
+    if (!activeManual.size && !nutState.size) { showToast('Nessuna nota da suonare!'); return; }
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const ctx = audioCtx;
+      const master = ctx.createGain();
+      master.gain.value = 0.28;
+      master.connect(ctx.destination);
+
+      // Collect notes: low E (string 5) → high e (string 0)
+      let delay = 0;
+      for (let s = NUM_STRINGS - 1; s >= 0; s--) {
+        let fret = null;
+        activeManual.forEach(k => {
+          const [ks, kf] = k.split('-').map(Number);
+          if (ks === s) fret = kf;
+        });
+        const nut = nutState.get(s) || null;
+        if (fret === null && nut !== 'open') continue;
+        const f = fret ?? 0;
+        const freq = STRING_FREQ[s] * Math.pow(2, f / 12);
+        const src  = karplusStrong(freq, 2.5, ctx);
+        src.connect(master);
+        src.start(ctx.currentTime + delay);
+        delay += 0.075;
+      }
+    } catch(e) { showToast('Audio non disponibile'); }
+  }
+
   /* ── TOAST & KEYBOARD ── */
   let toastTimer = null;
   function showToast(msg) {
@@ -857,6 +945,7 @@
   /* ── INIT ── */
   buildFretboard();
   buildNoteGrid();
+  buildIntervalRootGrid();
   renderShapesList();
   renderSessionsList();
   renderBeatDots();
