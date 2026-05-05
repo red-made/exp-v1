@@ -478,6 +478,13 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div class="toggle-row" style="margin-top:10px">
+      <span style="font-size:0.85rem">Durate variabili</span>
+      <label class="toggle">
+        <input type="checkbox" id="vardur-toggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
   </div>
 </aside>
 
@@ -497,7 +504,7 @@
   const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
   const midiToName = m => NOTES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 
-  let cfg = { numNotes: 5, midiMin: 40, midiMax: 84, scaleMode: 'free', tonic: 0, tunerOn: true };
+  let cfg = { numNotes: 5, midiMin: 40, midiMax: 84, scaleMode: 'free', tonic: 0, tunerOn: true, varDuration: false };
   let sequence = [], phase = 'start';
   let seqPlaying = false;
 
@@ -710,7 +717,10 @@
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    return pool.slice(0, cfg.numNotes);
+    return pool.slice(0, cfg.numNotes).map(n => ({
+      ...n,
+      dur: cfg.varDuration ? 400 + Math.random() * 1000 : 900  // ms gap before next note
+    }));
   }
 
   // Play all notes in sequence with gaps; highlight dot idx while playing
@@ -723,9 +733,10 @@
       // highlight current dot
       document.querySelectorAll('.seq-dot').forEach((d, k) =>
         d.classList.toggle('active', k === i));
-      playNote(sequence[i].freq);
+      const note = sequence[i];
+      playNote(note.freq);
       i++;
-      setTimeout(step, 900);
+      setTimeout(step, note.dur);
     };
     setTimeout(step, 80);
   }
@@ -921,6 +932,11 @@
       };
       tonicGrid.appendChild(btn);
     });
+
+    // Var duration toggle
+    document.getElementById('vardur-toggle').onchange = e => {
+      cfg.varDuration = e.target.checked;
+    };
 
     // Tuner toggle
     document.getElementById('tuner-toggle').onchange = e => {
