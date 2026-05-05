@@ -415,6 +415,15 @@
     footer a { color: var(--muted); text-decoration: none; transition: color 0.15s; }
     footer a:hover { color: var(--text); }
 
+    .scale-notes {
+      display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;
+    }
+    .scale-note {
+      padding: 3px 7px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+      font-size: 0.68rem; font-weight: 600; color: var(--text);
+    }
+
     @media (max-width: 640px) {
       body { grid-template-columns: 1fr; }
       aside { border-right: none; border-bottom: 1px solid var(--border); }
@@ -457,6 +466,7 @@
     <div id="tonic-section" style="display:none">
       <div class="cfg-label" style="margin-bottom:8px;margin-top:4px">Tonica</div>
       <div class="tonic-grid" id="tonic-grid"></div>
+      <div class="scale-notes" id="scale-notes"></div>
     </div>
   </div>
 
@@ -790,11 +800,17 @@
       </div>
       <div class="controls">
         <button class="btn-action" id="btn-back">&#9664; Riascolta</button>
-        <button class="btn-action" id="btn-restart">Nuova sequenza</button>
+        <button class="btn-action" id="btn-reveal-seq">Rivela</button>
+        <button class="btn-action" id="btn-restart">Nuova</button>
       </div>`;
 
     document.getElementById('btn-back').onclick    = renderListen;
     document.getElementById('btn-restart').onclick = startGame;
+    document.getElementById('btn-reveal-seq').onclick = () => {
+      grid.innerHTML = sequence.map(n =>
+        `<span class="ans-chip correct">${n.label}</span>`).join('');
+      input.value = sequence.map(n => NOTES[n.chroma]).join(' ');
+    };
 
     const input   = document.getElementById('answer-input');
     const grid    = document.getElementById('answer-grid');
@@ -816,7 +832,7 @@
         const ok = givenChroma === n.chroma;
         const correct = NOTES[n.chroma];
         return `<span class="ans-chip ${ok ? 'correct' : 'wrong'}"
-          title="${ok ? '✓' : 'Corretto: ' + correct}">${given}${ok ? '' : ' ✗'}</span>`;
+          title="${ok ? n.label : 'Corretto: ' + correct}">${ok ? n.label : given + ' ✗'}</span>`;
       }).join('') + (tokens.length > sequence.length
         ? `<span class="answer-hint" style="align-self:center;margin-left:4px">+${tokens.length - sequence.length} extra</span>` : '');
     };
@@ -869,6 +885,16 @@
     maxEl.oninput = syncNoteRange;
     syncNoteRange();
 
+    function updateScaleDisplay() {
+      const el = document.getElementById('scale-notes');
+      if (!el) return;
+      if (cfg.scaleMode === 'free') { el.innerHTML = ''; return; }
+      const mask = cfg.scaleMode === 'major' ? MAJOR_MASK : MINOR_MASK;
+      el.innerHTML = mask.map(iv =>
+        `<span class="scale-note">${NOTES[(cfg.tonic + iv) % 12]}</span>`
+      ).join('');
+    }
+
     // Scale mode
     document.getElementById('scale-btns').onclick = e => {
       const btn = e.target.closest('button[data-mode]');
@@ -878,6 +904,7 @@
         b.classList.toggle('active', b === btn));
       document.getElementById('tonic-section').style.display =
         cfg.scaleMode === 'free' ? 'none' : 'block';
+      updateScaleDisplay();
     };
 
     // Tonic
@@ -890,6 +917,7 @@
         cfg.tonic = i;
         tonicGrid.querySelectorAll('button').forEach((b, j) =>
           b.classList.toggle('active', j === i));
+        updateScaleDisplay();
       };
       tonicGrid.appendChild(btn);
     });
