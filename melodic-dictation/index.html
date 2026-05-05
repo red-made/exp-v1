@@ -485,6 +485,13 @@
         <span class="toggle-slider"></span>
       </label>
     </div>
+    <div class="toggle-row" style="margin-top:10px">
+      <span style="font-size:0.85rem">Riff famosi</span>
+      <label class="toggle">
+        <input type="checkbox" id="riff-toggle">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
   </div>
 </aside>
 
@@ -494,6 +501,7 @@
   esperimenti by <a href="https://devinred.com" target="_blank">devinred.com</a>
 </footer>
 
+<script src="riffs.js"></script>
 <script>
   const NOTES      = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const MAJOR_MASK = [0, 2, 4, 5, 7, 9, 11];
@@ -504,9 +512,9 @@
   const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
   const midiToName = m => NOTES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
 
-  let cfg = { numNotes: 5, midiMin: 40, midiMax: 84, scaleMode: 'free', tonic: 0, tunerOn: true, varDuration: false };
+  let cfg = { numNotes: 5, midiMin: 40, midiMax: 84, scaleMode: 'free', tonic: 0, tunerOn: true, varDuration: false, useRiffs: false };
   let sequence = [], phase = 'start';
-  let seqPlaying = false;
+  let seqPlaying = false, currentRiff = null;
 
   // --- Audio ---
   let audioCtx = null;
@@ -765,7 +773,12 @@
     seqPlaying = false;
     mainEl().innerHTML = `
       <div class="seq-display">
-        <div class="cfg-label">Melodia — ${sequence.length} note</div>
+        ${currentRiff
+          ? `<div style="text-align:center">
+               <div style="font-size:1.1rem;font-weight:700;letter-spacing:-0.01em">${currentRiff.name}</div>
+               <div style="font-size:0.78rem;color:var(--muted);margin-top:3px">${currentRiff.artist}</div>
+             </div>`
+          : `<div class="cfg-label">Melodia — ${sequence.length} note</div>`}
         <div class="seq-dots">${seqDotsHTML()}</div>
         <button class="btn-play" id="btn-listen" title="Ascolta sequenza">&#9654;</button>
       </div>
@@ -854,12 +867,28 @@
     if (cfg.tunerOn && !micStream) startTuner();
   }
 
+  function riffToSequence(riff) {
+    return riff.notes.map(n => ({
+      label:  midiToName(n.midi),
+      chroma: n.midi % 12,
+      freq:   midiToFreq(n.midi),
+      midi:   n.midi,
+      dur:    n.dur
+    }));
+  }
+
   function startGame() {
-    if (buildPool().length === 0) {
-      alert('Nessuna nota disponibile nel range selezionato. Allarga il range o cambia scala.');
-      return;
+    if (cfg.useRiffs) {
+      currentRiff = RIFFS[Math.floor(Math.random() * RIFFS.length)];
+      sequence    = riffToSequence(currentRiff);
+    } else {
+      currentRiff = null;
+      if (buildPool().length === 0) {
+        alert('Nessuna nota disponibile nel range selezionato. Allarga il range o cambia scala.');
+        return;
+      }
+      sequence = generateSequence();
     }
-    sequence   = generateSequence();
     seqPlaying = false;
     renderListen();
     if (cfg.tunerOn && !micStream) startTuner();
@@ -936,6 +965,11 @@
     // Var duration toggle
     document.getElementById('vardur-toggle').onchange = e => {
       cfg.varDuration = e.target.checked;
+    };
+
+    // Riff toggle
+    document.getElementById('riff-toggle').onchange = e => {
+      cfg.useRiffs = e.target.checked;
     };
 
     // Tuner toggle
