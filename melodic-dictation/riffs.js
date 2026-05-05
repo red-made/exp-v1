@@ -49,7 +49,7 @@ const RIFFS = [
     ]
   },
   {
-    name: "Beethoven 5th Symphony (Main Motif)",
+    name: "Beethoven 5th Symphony",
     artist: "Ludwig van Beethoven",
     notes: [
       { midi: 67, dur: 400 },
@@ -77,7 +77,7 @@ const RIFFS = [
   },
   {
     name: "Ode to Joy",
-    artist: "Beethoven",
+    artist: "Ludwig van Beethoven",
     notes: [
       { midi: 64, dur: 400 },
       { midi: 64, dur: 400 },
@@ -126,6 +126,196 @@ const RIFFS = [
       { midi: 62, dur: 400 },
       { midi: 64, dur: 400 },
       { midi: 60, dur: 800 }
+    ]
+  },
+  {
+    name: "Old MacDonald",
+    artist: "Traditional",
+    notes: [
+      { midi: 64, dur: 500 },
+      { midi: 64, dur: 500 },
+      { midi: 64, dur: 500 },
+      { midi: 60, dur: 500 },
+      { midi: 62, dur: 500 },
+      { midi: 62, dur: 1000 }
+    ]
+  },
+  {
+    name: "La Cucaracha",
+    artist: "Traditional",
+    notes: [
+      { midi: 64, dur: 400 },
+      { midi: 64, dur: 400 },
+      { midi: 67, dur: 400 },
+      { midi: 67, dur: 400 },
+      { midi: 69, dur: 400 },
+      { midi: 67, dur: 800 }
+    ]
+  },
+  {
+    name: "Amazing Grace",
+    artist: "Traditional",
+    notes: [
+      { midi: 67, dur: 600 },
+      { midi: 64, dur: 600 },
+      { midi: 62, dur: 600 },
+      { midi: 64, dur: 600 },
+      { midi: 67, dur: 600 },
+      { midi: 69, dur: 900 }
+    ]
+  },
+  {
+    name: "Canon in D (Simplified)",
+    artist: "Johann Pachelbel",
+    notes: [
+      { midi: 62, dur: 500 },
+      { midi: 69, dur: 500 },
+      { midi: 71, dur: 500 },
+      { midi: 66, dur: 500 },
+      { midi: 67, dur: 500 },
+      { midi: 69, dur: 500 },
+      { midi: 62, dur: 900 }
+    ]
+  },
+  {
+    name: "Für Elise",
+    artist: "Ludwig van Beethoven",
+    notes: [
+      { midi: 64, dur: 300 },
+      { midi: 63, dur: 300 },
+      { midi: 64, dur: 300 },
+      { midi: 63, dur: 300 },
+      { midi: 64, dur: 300 },
+      { midi: 59, dur: 300 },
+      { midi: 62, dur: 300 },
+      { midi: 60, dur: 600 }
+    ]
+  },
+  {
+    name: "Imperial March (Star Wars)",
+    artist: "John Williams",
+    notes: [
+      { midi: 50, dur: 600 },
+      { midi: 50, dur: 600 },
+      { midi: 50, dur: 600 },
+      { midi: 46, dur: 450 },
+      { midi: 53, dur: 150 },
+      { midi: 50, dur: 600 },
+      { midi: 46, dur: 450 },
+      { midi: 53, dur: 150 }
+    ]
+  },
+  {
+    name: "Tetris Theme (Korobeiniki)",
+    artist: "Traditional",
+    notes: [
+      { midi: 64, dur: 300 },
+      { midi: 71, dur: 300 },
+      { midi: 69, dur: 300 },
+      { midi: 67, dur: 300 },
+      { midi: 69, dur: 300 },
+      { midi: 71, dur: 300 },
+      { midi: 64, dur: 600 }
+    ]
+  },
+  {
+    name: "Super Mario Bros Theme",
+    artist: "Koji Kondo",
+    notes: [
+      { midi: 76, dur: 200 },
+      { midi: 76, dur: 200 },
+      { midi: 0,  dur: 200 },
+      { midi: 76, dur: 200 },
+      { midi: 0,  dur: 200 },
+      { midi: 72, dur: 200 },
+      { midi: 76, dur: 400 },
+      { midi: 79, dur: 400 }
+    ]
+  },
+  {
+    name: "Zelda Main Theme",
+    artist: "Koji Kondo",
+    notes: [
+      { midi: 67, dur: 400 },
+      { midi: 69, dur: 400 },
+      { midi: 71, dur: 400 },
+      { midi: 72, dur: 400 },
+      { midi: 71, dur: 400 },
+      { midi: 69, dur: 400 },
+      { midi: 67, dur: 800 }
+    ]
+  },
+  {
+    name: "The Simpsons Theme",
+    artist: "Danny Elfman",
+    notes: [
+      { midi: 64, dur: 300 },
+      { midi: 66, dur: 300 },
+      { midi: 68, dur: 300 },
+      { midi: 71, dur: 300 },
+      { midi: 68, dur: 300 },
+      { midi: 66, dur: 300 },
+      { midi: 64, dur: 600 }
+    ]
+  },
+  {
+    name: "Hedwig's Theme (Harry Potter)",
+    artist: "John Williams",
+    notes: [
+      { midi: 71, dur: 400 },
+      { midi: 76, dur: 400 },
+      { midi: 74, dur: 400 },
+      { midi: 72, dur: 400 },
+      { midi: 67, dur: 800 }
+    ]
+  },
+  {
+    name: "Pirates of the Caribbean",
+    artist: "Hans Zimmer",
+    notes: [
+      { midi: 62, dur: 400 },
+      { midi: 64, dur: 400 },
+      { midi: 66, dur: 400 },
+      { midi: 67, dur: 400 },
+      { midi: 66, dur: 400 },
+      { midi: 64, dur: 400 },
+      { midi: 62, dur: 800 }
+    ]
+  },
+  {
+    name: "James Bond Theme",
+    artist: "Monty Norman",
+    notes: [
+      { midi: 64, dur: 300 },
+      { midi: 66, dur: 300 },
+      { midi: 68, dur: 300 },
+      { midi: 68, dur: 600 },
+      { midi: 66, dur: 300 },
+      { midi: 64, dur: 600 }
+    ]
+  },
+  {
+    name: "Axel F (Beverly Hills Cop)",
+    artist: "Harold Faltermeyer",
+    notes: [
+      { midi: 64, dur: 300 },
+      { midi: 67, dur: 300 },
+      { midi: 64, dur: 300 },
+      { midi: 72, dur: 300 },
+      { midi: 71, dur: 300 },
+      { midi: 67, dur: 600 }
+    ]
+  },
+  {
+    name: "Pink Panther Theme",
+    artist: "Henry Mancini",
+    notes: [
+      { midi: 60, dur: 400 },
+      { midi: 63, dur: 400 },
+      { midi: 65, dur: 400 },
+      { midi: 66, dur: 400 },
+      { midi: 65, dur: 400 },
+      { midi: 63, dur: 800 }
     ]
   }
 ];
