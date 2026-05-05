@@ -516,7 +516,7 @@
 
   let cfg = { numNotes: 5, midiMin: 40, midiMax: 84, scaleMode: 'free', tonic: 0, tunerOn: true, varDuration: false, useRiffs: false };
   let sequence = [], phase = 'start';
-  let seqPlaying = false, currentRiff = null;
+  let seqPlaying = false, seqGen = 0, currentRiff = null;
 
   // --- Audio ---
   let audioCtx = null;
@@ -737,10 +737,11 @@
   function playSequence(onDone) {
     if (seqPlaying) return;
     seqPlaying = true;
+    const gen = ++seqGen;
     let i = 0;
     const step = () => {
+      if (gen !== seqGen) { seqPlaying = false; return; } // cancelled
       if (i >= sequence.length) { seqPlaying = false; onDone && onDone(); return; }
-      // highlight current dot
       document.querySelectorAll('.seq-dot').forEach((d, k) =>
         d.classList.toggle('active', k === i));
       const note = sequence[i];
@@ -773,6 +774,7 @@
   function renderListen() {
     phase = 'listen';
     seqPlaying = false;
+    seqGen++; // cancella qualsiasi playback in corso
     mainEl().innerHTML = `
       <div class="seq-display">
         ${currentRiff
