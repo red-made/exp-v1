@@ -325,6 +325,61 @@
     .btn-action.primary:hover { background: #9088f9; border-color: #9088f9; }
     .btn-action:disabled { opacity: 0.38; cursor: not-allowed; }
 
+    .seq-display {
+      width: 100%; max-width: 480px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      display: flex; flex-direction: column; align-items: center; gap: 16px;
+    }
+    .seq-dots { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    .seq-dot {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--surface2); border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; font-weight: 700; color: var(--muted);
+      transition: background 0.25s, border-color 0.25s, box-shadow 0.25s, color 0.25s;
+    }
+    .seq-dot.active { background: var(--accent); border-color: var(--accent); color: #fff; box-shadow: 0 0 18px rgba(124,111,247,0.55); }
+
+    .proximity-list {
+      display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+      min-height: 30px; align-items: center;
+    }
+    .prox-chip {
+      padding: 4px 11px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 600; font-variant-numeric: tabular-nums;
+      border: 1px solid; transition: all 0.15s;
+    }
+    .prox-chip.green  { color: var(--green);  border-color: rgba(75,232,154,0.35); background: rgba(75,232,154,0.09); }
+    .prox-chip.yellow { color: var(--yellow); border-color: rgba(232,195,75,0.35); background: rgba(232,195,75,0.09); }
+    .prox-chip.red    { color: var(--red);    border-color: rgba(232,75,75,0.35);  background: rgba(232,75,75,0.09); }
+
+    .answer-section {
+      width: 100%; max-width: 480px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 18px 22px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .answer-hint { font-size: 0.72rem; color: var(--muted); }
+    .answer-input-row { display: flex; gap: 8px; }
+    .answer-input {
+      flex: 1; padding: 9px 13px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); font-size: 0.9rem; font-family: inherit; outline: none;
+      transition: border-color 0.15s; letter-spacing: 0.04em;
+    }
+    .answer-input:focus { border-color: var(--accent-dim); }
+    .answer-input::placeholder { color: var(--muted); }
+    .answer-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ans-chip {
+      padding: 5px 12px; border-radius: 6px;
+      font-size: 0.85rem; font-weight: 600; border: 1px solid;
+    }
+    .ans-chip.correct { color: var(--green);  border-color: rgba(75,232,154,0.4); background: rgba(75,232,154,0.1); }
+    .ans-chip.wrong   { color: var(--red);    border-color: rgba(232,75,75,0.4);  background: rgba(232,75,75,0.1); }
+    .ans-chip.missing { color: var(--muted);  border-color: var(--border);        background: var(--surface2); }
+
     .result-screen {
       text-align: center;
       display: flex;
@@ -382,14 +437,14 @@
   </div>
 
   <div class="cfg-section">
-    <div class="cfg-label">Range tasti &nbsp;<span id="fret-range-label" style="color:var(--text);font-weight:700">0 – 12</span></div>
-    <div class="dual-range-wrap" id="fret-wrap">
+    <div class="cfg-label">Range note &nbsp;<span id="note-range-label" style="color:var(--text);font-weight:700">E2 – C6</span></div>
+    <div class="dual-range-wrap" id="note-range-wrap">
       <div class="dual-range-track"></div>
-      <div class="dual-range-fill" id="fret-fill"></div>
-      <input type="range" id="fret-min" min="0" max="15" value="0">
-      <input type="range" id="fret-max" min="0" max="15" value="12">
+      <div class="dual-range-fill" id="note-fill"></div>
+      <input type="range" id="midi-min" min="40" max="84" value="40">
+      <input type="range" id="midi-max" min="40" max="84" value="84">
     </div>
-    <div class="range-labels"><span>0</span><span>15</span></div>
+    <div class="range-labels"><span>E2</span><span>C6</span></div>
   </div>
 
   <div class="cfg-section">
@@ -423,15 +478,18 @@
 </footer>
 
 <script>
-  const STRING_FREQ = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
-  const STRING_MIDI = [64, 59, 55, 50, 45, 40];
-  const NUM_STRINGS = 6;
-  const NOTES       = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const MAJOR_MASK  = [0, 2, 4, 5, 7, 9, 11];
-  const MINOR_MASK  = [0, 2, 3, 5, 7, 8, 10];
+  const NOTES      = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const MAJOR_MASK = [0, 2, 4, 5, 7, 9, 11];
+  const MINOR_MASK = [0, 2, 3, 5, 7, 8, 10];
+  const MIDI_MIN   = 40; // E2
+  const MIDI_MAX   = 84; // C6
 
-  let cfg = { numNotes: 5, fretMin: 0, fretMax: 12, scaleMode: 'free', tonic: 0, tunerOn: true };
-  let sequence = [], currentIdx = 0, revealed = false, phase = 'start';
+  const midiToFreq = m => 440 * Math.pow(2, (m - 69) / 12);
+  const midiToName = m => NOTES[((m % 12) + 12) % 12] + (Math.floor(m / 12) - 1);
+
+  let cfg = { numNotes: 5, midiMin: 40, midiMax: 84, scaleMode: 'free', tonic: 0, tunerOn: true };
+  let sequence = [], phase = 'start';
+  let seqPlaying = false;
 
   // --- Audio ---
   let audioCtx = null;
@@ -533,49 +591,53 @@
     return sr / tau;
   }
 
-  function centsToClosestChroma(detectedFreq, targetFreq) {
-    // Find cents to closest octave-equivalent of target (handles singing in different octave)
-    const targetMidi   = 69 + 12 * Math.log2(targetFreq / 440);
-    const detectedMidi = 69 + 12 * Math.log2(detectedFreq / 440);
-    const targetChroma = ((Math.round(targetMidi) % 12) + 12) % 12;
-    const base         = Math.round(detectedMidi / 12) * 12 + targetChroma;
-    const candidates   = [base - 12, base, base + 12];
-    const closest      = candidates.reduce((a, b) =>
-      Math.abs(a - detectedMidi) < Math.abs(b - detectedMidi) ? a : b
-    );
-    const closestFreq  = 440 * Math.pow(2, (closest - 69) / 12);
-    return 1200 * Math.log2(detectedFreq / closestFreq);
+  // Cents from detectedFreq to targetFreq, octave-equivalent ([-600, 600])
+  function octaveCents(detectedFreq, targetFreq) {
+    let c = 1200 * Math.log2(detectedFreq / targetFreq);
+    c = c % 1200;
+    if (c > 600) c -= 1200;
+    if (c < -600) c += 1200;
+    return c;
   }
 
   function tunerLoop() {
     if (!micAnalyser) return;
     micAnalyser.getFloatTimeDomainData(micBuf);
     const canvas = document.getElementById('tuner-canvas');
-    const centsEl = document.getElementById('tuner-cents');
     if (!canvas) { tunerRaf = requestAnimationFrame(tunerLoop); return; }
     const ctx2 = canvas.getContext('2d');
+    const proxEl = document.getElementById('prox-list');
 
-    if (phase !== 'playing' || rms(micBuf) < 0.012) {
+    const idle = phase !== 'reproduce' || rms(micBuf) < 0.012;
+    if (idle) {
       drawNeedle(ctx2, null, canvas.width, canvas.height);
-      if (centsEl) { centsEl.textContent = '—'; centsEl.style.color = 'var(--muted)'; }
+      if (proxEl) proxEl.innerHTML = '';
       tunerRaf = requestAnimationFrame(tunerLoop);
       return;
     }
     const freq = yin(micBuf, micCtx.sampleRate);
     if (freq < 0) {
       drawNeedle(ctx2, null, canvas.width, canvas.height);
-      if (centsEl) { centsEl.textContent = '—'; centsEl.style.color = 'var(--muted)'; }
+      if (proxEl) proxEl.innerHTML = '';
       tunerRaf = requestAnimationFrame(tunerLoop);
       return;
     }
-    const cents  = centsToClosestChroma(freq, sequence[currentIdx].freq);
-    const clamped = Math.max(-60, Math.min(60, cents));
-    drawNeedle(ctx2, clamped, canvas.width, canvas.height);
-    if (centsEl) {
-      const inTune = Math.abs(cents) < 15;
-      const close  = Math.abs(cents) < 40;
-      centsEl.textContent = (cents > 0 ? '+' : '') + Math.round(cents) + ' cents';
-      centsEl.style.color  = inTune ? 'var(--green)' : close ? 'var(--yellow)' : 'var(--red)';
+
+    // Compute proximity to every note in the sequence
+    const proximities = sequence
+      .map((n, i) => ({ idx: i + 1, cents: octaveCents(freq, n.freq) }))
+      .sort((a, b) => Math.abs(a.cents) - Math.abs(b.cents));
+
+    const best = proximities[0];
+    drawNeedle(ctx2, Math.max(-60, Math.min(60, best.cents)), canvas.width, canvas.height);
+
+    if (proxEl) {
+      proxEl.innerHTML = proximities.slice(0, 3).map(p => {
+        const abs = Math.abs(p.cents);
+        const cls = abs < 15 ? 'green' : abs < 40 ? 'yellow' : 'red';
+        const sign = p.cents >= 0 ? '+' : '';
+        return `<span class="prox-chip ${cls}">${p.idx} → ${sign}${Math.round(p.cents)}c</span>`;
+      }).join('');
     }
     tunerRaf = requestAnimationFrame(tunerLoop);
   }
@@ -620,23 +682,14 @@
 
   // --- Note generation ---
   function buildPool() {
-    const seen = new Set();
     const pool = [];
-    for (let s = 0; s < NUM_STRINGS; s++) {
-      for (let f = cfg.fretMin; f <= cfg.fretMax; f++) {
-        const midi   = STRING_MIDI[s] + f;
-        const chroma = ((midi % 12) + 12) % 12;
-        if (cfg.scaleMode !== 'free') {
-          const mask = cfg.scaleMode === 'major' ? MAJOR_MASK : MINOR_MASK;
-          if (!mask.includes((chroma - cfg.tonic + 12) % 12)) continue;
-        }
-        if (!seen.has(midi)) {
-          seen.add(midi);
-          const freq   = STRING_FREQ[s] * Math.pow(2, f / 12);
-          const octave = Math.floor(midi / 12) - 1;
-          pool.push({ label: NOTES[chroma] + octave, freq, midi });
-        }
+    for (let midi = cfg.midiMin; midi <= cfg.midiMax; midi++) {
+      const chroma = midi % 12;
+      if (cfg.scaleMode !== 'free') {
+        const mask = cfg.scaleMode === 'major' ? MAJOR_MASK : MINOR_MASK;
+        if (!mask.includes((chroma - cfg.tonic + 12) % 12)) continue;
       }
+      pool.push({ label: midiToName(midi), chroma, freq: midiToFreq(midi), midi });
     }
     return pool;
   }
@@ -650,105 +703,138 @@
     return pool.slice(0, cfg.numNotes);
   }
 
+  // Play all notes in sequence with gaps; highlight dot idx while playing
+  function playSequence(onDone) {
+    if (seqPlaying) return;
+    seqPlaying = true;
+    let i = 0;
+    const step = () => {
+      if (i >= sequence.length) { seqPlaying = false; onDone && onDone(); return; }
+      // highlight current dot
+      document.querySelectorAll('.seq-dot').forEach((d, k) =>
+        d.classList.toggle('active', k === i));
+      playNote(sequence[i].freq);
+      i++;
+      setTimeout(step, 900);
+    };
+    setTimeout(step, 80);
+  }
+
   // --- Render ---
   const mainEl = () => document.getElementById('main');
+
+  function seqDotsHTML() {
+    return sequence.map((_, i) =>
+      `<div class="seq-dot" data-i="${i}">${i + 1}</div>`).join('');
+  }
 
   function renderStart() {
     phase = 'start';
     mainEl().innerHTML = `
       <div class="start-screen">
         <h2>Melodic Dictation</h2>
-        <p>Configura le opzioni, premi Start. L'app suonerà una nota alla volta — cantala o suonala.</p>
+        <p>Configura le opzioni e premi Start. L'app suonerà una melodia — ascoltala, poi riproducila.</p>
         <button class="btn-action primary" id="btn-start" style="max-width:200px">Inizia</button>
       </div>`;
     document.getElementById('btn-start').onclick = startGame;
   }
 
-  function renderPlaying() {
-    const note = sequence[currentIdx];
-    const pct  = (currentIdx / sequence.length) * 100;
+  function renderListen() {
+    phase = 'listen';
+    seqPlaying = false;
     mainEl().innerHTML = `
-      <div class="progress-row">
-        <div class="progress-text">Nota ${currentIdx + 1} di ${sequence.length}</div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="seq-display">
+        <div class="cfg-label">Melodia — ${sequence.length} note</div>
+        <div class="seq-dots">${seqDotsHTML()}</div>
+        <button class="btn-play" id="btn-listen" title="Ascolta sequenza">&#9654;</button>
       </div>
-      <div class="note-card">
-        <button class="btn-play" id="btn-play">&#9654;</button>
-        <div class="note-display ${revealed ? '' : 'hidden'}" id="note-display">
-          ${revealed ? note.label : '?'}
-        </div>
-        <button class="btn-reveal" id="btn-reveal">
-          ${revealed ? 'Nascondi' : 'Mostra nota'}
-        </button>
-      </div>
-      ${cfg.tunerOn ? `
-      <div class="tuner-card">
-        <div class="tuner-label">Accordatore</div>
-        <canvas id="tuner-canvas" width="440" height="72"></canvas>
-        <div class="tuner-cents" id="tuner-cents">—</div>
-      </div>` : ''}
       <div class="controls">
         <button class="btn-action" id="btn-restart">Ricomincia</button>
-        <button class="btn-action primary" id="btn-next">
-          ${currentIdx < sequence.length - 1 ? 'Nota successiva' : 'Fine'}
-        </button>
+        <button class="btn-action primary" id="btn-reproduce">Riproduci &rarr;</button>
       </div>`;
 
-    const playBtn = document.getElementById('btn-play');
-    playBtn.onclick = () => {
-      playBtn.classList.add('playing');
-      setTimeout(() => playBtn.classList.remove('playing'), 600);
-      playNote(note.freq);
+    const listenBtn = document.getElementById('btn-listen');
+    listenBtn.onclick = () => {
+      listenBtn.classList.add('playing');
+      setTimeout(() => listenBtn.classList.remove('playing'), 600);
+      playSequence(() => {
+        document.querySelectorAll('.seq-dot').forEach(d => d.classList.remove('active'));
+      });
     };
-    document.getElementById('btn-reveal').onclick = () => {
-      revealed = !revealed;
-      renderPlaying();
-    };
-    document.getElementById('btn-next').onclick = () => {
-      if (currentIdx < sequence.length - 1) {
-        currentIdx++;
-        revealed = false;
-        renderPlaying();
-        // short delay so render settles first
-        setTimeout(() => playNote(sequence[currentIdx].freq), 80);
-      } else {
-        renderDone();
-      }
-    };
-    document.getElementById('btn-restart').onclick = startGame;
+    document.getElementById('btn-reproduce').onclick = renderReproduce;
+    document.getElementById('btn-restart').onclick   = startGame;
+
+    // Auto-play on first render
+    setTimeout(() => listenBtn.click(), 200);
   }
 
-  function renderDone() {
-    phase = 'done';
-    stopTuner();
+  function renderReproduce() {
+    phase = 'reproduce';
+    const placeholder = sequence.map(() => '?').join(' ');
     mainEl().innerHTML = `
-      <div class="result-screen">
-        <h2>Fatto!</h2>
-        <p style="color:var(--muted);font-size:0.85rem">La sequenza era:</p>
-        <div class="result-notes">
-          ${sequence.map(n => `<div class="result-note">${n.label}</div>`).join('')}
+      ${cfg.tunerOn ? `
+      <div class="tuner-card" style="width:100%;max-width:480px">
+        <div class="tuner-label">Accordatore — vicino a:</div>
+        <canvas id="tuner-canvas" width="440" height="64"></canvas>
+        <div class="proximity-list" id="prox-list"></div>
+      </div>` : ''}
+      <div class="answer-section">
+        <div class="cfg-label">Scrivi la sequenza (${sequence.length} note)</div>
+        <div class="answer-hint">Nomi nota senza ottava, separati da spazio &nbsp;·&nbsp; es: <em>C D# F G A</em></div>
+        <div class="answer-input-row">
+          <input class="answer-input" id="answer-input" type="text"
+            placeholder="${placeholder}" autocomplete="off" spellcheck="false">
+          <button class="btn-action primary" id="btn-verify" style="flex:0;padding:9px 18px">Verifica</button>
         </div>
-        <div class="controls" style="max-width:480px;width:100%;margin-top:8px">
-          <button class="btn-action" id="btn-home">Menu</button>
-          <button class="btn-action primary" id="btn-again">Nuova sequenza</button>
-        </div>
+        <div class="answer-grid" id="answer-grid"></div>
+      </div>
+      <div class="controls">
+        <button class="btn-action" id="btn-back">&#9664; Riascolta</button>
+        <button class="btn-action" id="btn-restart">Nuova sequenza</button>
       </div>`;
-    document.getElementById('btn-again').onclick = startGame;
-    document.getElementById('btn-home').onclick  = renderStart;
+
+    document.getElementById('btn-back').onclick    = renderListen;
+    document.getElementById('btn-restart').onclick = startGame;
+
+    const input   = document.getElementById('answer-input');
+    const grid    = document.getElementById('answer-grid');
+    const verBtn  = document.getElementById('btn-verify');
+
+    const NOTE_MAP = {
+      'CB':11,'C':0,'C#':1,'DB':1,'D':2,'D#':3,'EB':3,'E':4,'E#':5,
+      'FB':4,'F':5,'F#':6,'GB':6,'G':7,'G#':8,'AB':8,'A':9,'A#':10,
+      'BB':10,'B':11,'B#':0
+    };
+    const parseNote = s => { const v = NOTE_MAP[s.trim().toUpperCase()]; return v !== undefined ? v : -1; };
+
+    verBtn.onclick = () => {
+      const tokens = input.value.trim().split(/\s+/).filter(Boolean);
+      grid.innerHTML = sequence.map((n, i) => {
+        const given = tokens[i] || '';
+        if (!given) return `<span class="ans-chip missing">?</span>`;
+        const givenChroma = parseNote(given);
+        const ok = givenChroma === n.chroma;
+        const correct = NOTES[n.chroma];
+        return `<span class="ans-chip ${ok ? 'correct' : 'wrong'}"
+          title="${ok ? '✓' : 'Corretto: ' + correct}">${given}${ok ? '' : ' ✗'}</span>`;
+      }).join('') + (tokens.length > sequence.length
+        ? `<span class="answer-hint" style="align-self:center;margin-left:4px">+${tokens.length - sequence.length} extra</span>` : '');
+    };
+
+    // Allow Enter to verify
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') verBtn.click(); });
+
+    if (cfg.tunerOn && !micStream) startTuner();
   }
 
   function startGame() {
-    const pool = buildPool();
-    if (pool.length === 0) {
-      alert('Nessuna nota disponibile nel range selezionato. Allarga il range tasti o cambia scala.');
+    if (buildPool().length === 0) {
+      alert('Nessuna nota disponibile nel range selezionato. Allarga il range o cambia scala.');
       return;
     }
     sequence   = generateSequence();
-    currentIdx = 0;
-    revealed   = false;
-    phase      = 'playing';
-    renderPlaying();
-    setTimeout(() => playNote(sequence[0].freq), 80);
+    seqPlaying = false;
+    renderListen();
     if (cfg.tunerOn && !micStream) startTuner();
   }
 
@@ -759,27 +845,29 @@
     const numVal = document.getElementById('num-notes-val');
     numEl.oninput = () => { cfg.numNotes = +numEl.value; numVal.textContent = cfg.numNotes; };
 
-    // Dual fret range
-    const minEl   = document.getElementById('fret-min');
-    const maxEl   = document.getElementById('fret-max');
-    const fillEl  = document.getElementById('fret-fill');
-    const labelEl = document.getElementById('fret-range-label');
+    // Dual MIDI range (E2=40 … C6=84)
+    const minEl   = document.getElementById('midi-min');
+    const maxEl   = document.getElementById('midi-max');
+    const fillEl  = document.getElementById('note-fill');
+    const labelEl = document.getElementById('note-range-label');
+    const span    = MIDI_MAX - MIDI_MIN;
 
-    function syncFretRange() {
+    function syncNoteRange() {
       let lo = +minEl.value, hi = +maxEl.value;
       if (lo > hi) {
         if (document.activeElement === minEl) { lo = hi; minEl.value = lo; }
         else                                  { hi = lo; maxEl.value = hi; }
       }
-      cfg.fretMin = lo; cfg.fretMax = hi;
-      const step = 100 / 15;
-      fillEl.style.left  = (lo * step) + '%';
-      fillEl.style.width = ((hi - lo) * step) + '%';
-      labelEl.textContent = `${lo} – ${hi}`;
+      cfg.midiMin = lo; cfg.midiMax = hi;
+      const pctLo = (lo - MIDI_MIN) / span * 100;
+      const pctHi = (hi - MIDI_MIN) / span * 100;
+      fillEl.style.left  = pctLo + '%';
+      fillEl.style.width = (pctHi - pctLo) + '%';
+      labelEl.textContent = `${midiToName(lo)} – ${midiToName(hi)}`;
     }
-    minEl.oninput = syncFretRange;
-    maxEl.oninput = syncFretRange;
-    syncFretRange();
+    minEl.oninput = syncNoteRange;
+    maxEl.oninput = syncNoteRange;
+    syncNoteRange();
 
     // Scale mode
     document.getElementById('scale-btns').onclick = e => {
@@ -810,7 +898,7 @@
     document.getElementById('tuner-toggle').onchange = e => {
       cfg.tunerOn = e.target.checked;
       if (!cfg.tunerOn) stopTuner();
-      else if (phase === 'playing') startTuner();
+      else if (phase === 'reproduce') startTuner();
     };
   })();
 
