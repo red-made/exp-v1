@@ -96,6 +96,7 @@
     .beat-ring.accent  { border-color: var(--accent); box-shadow: 0 0 36px rgba(124,111,247,0.5); }
     .beat-ring.beat    { border-color: #555; box-shadow: 0 0 18px rgba(100,100,100,0.25); }
     .beat-ring.subdiv  { border-color: #333; }
+    .beat-ring.muted   { border-color: #2a2a2a; opacity: 0.45; }
     .beat-num  { font-size: 4rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
     .beat-sub  { font-size: 1.1rem; color: var(--muted); margin-top: 2px; min-height: 1.4em; }
     .bar-label { font-size: 0.75rem; color: var(--muted); }
@@ -156,6 +157,55 @@
     .offbeat-list { font-size: 0.78rem; color: var(--muted); line-height: 1.8; }
     .offbeat-list span { color: var(--red); font-weight: 600; margin-right: 6px; }
 
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+    .tab-btn {
+      padding: 9px 22px; background: none; border: none;
+      border-bottom: 2px solid transparent; color: var(--muted);
+      font-size: 0.85rem; font-weight: 500; cursor: pointer;
+      transition: color 0.15s, border-color 0.15s; margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab-pane { display: none; flex-direction: column; gap: 20px; }
+    .tab-pane.active { display: flex; }
+
+    .section-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+
+    .history-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .history-table th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.06em; padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    .history-table td { padding: 9px 10px; border-bottom: 1px solid #191919; }
+    .history-table tr:last-child td { border-bottom: none; }
+    .history-table tr.cur td { background: rgba(124,111,247,0.07); }
+    .history-table .green { color: var(--green); }
+    .history-table .yellow { color: var(--yellow); }
+    .history-table .red { color: var(--red); }
+    .history-table .best { font-weight: 700; }
+
+    .bests-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    @media (max-width: 640px) { .bests-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .btn-danger { color: var(--red); border-color: #2a1010; }
+    .btn-danger:hover { border-color: var(--red); }
+
+    .log-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .log-header { display: flex; align-items: center; justify-content: space-between; }
+    .log-text {
+      width: 100%; height: 200px; resize: vertical;
+      background: #0a0a0a; border: 1px solid var(--border); border-radius: 6px;
+      color: #9a9a9a; font-family: 'Courier New', monospace; font-size: 0.72rem;
+      line-height: 1.6; padding: 10px 12px; outline: none;
+    }
+    .btn-copy {
+      padding: 5px 12px; border-radius: 5px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted); font-size: 0.72rem;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .btn-copy:hover { border-color: var(--accent-dim); color: var(--text); }
+    .btn-copy.copied { border-color: var(--green); color: var(--green); }
+
     .btn-action {
       padding: 11px 24px; border-radius: 8px; border: 1px solid var(--border);
       background: var(--surface2); color: var(--text); font-size: 0.88rem; font-weight: 500;
@@ -199,13 +249,9 @@
   </div>
 
   <div class="cfg-section">
-    <div class="cfg-label">Durata (battute)</div>
-    <div class="btn-group" id="bars-btns">
-      <button data-bars="4">4</button>
-      <button data-bars="8" class="active">8</button>
-      <button data-bars="16">16</button>
-      <button data-bars="32">32</button>
-    </div>
+    <div class="cfg-label">Durata &nbsp;<span id="dur-val" style="color:var(--text);font-weight:700">30s</span></div>
+    <input type="range" id="duration" min="5" max="120" step="5" value="30">
+    <div class="range-row"><span>5s</span><span>120s</span></div>
   </div>
 
   <div class="cfg-section">
@@ -234,6 +280,32 @@
   </div>
 
   <div class="cfg-section">
+    <div class="cfg-label">Silenzia click</div>
+    <div class="btn-group" id="mute-btns">
+      <button data-mute="none" class="active">No</button>
+      <button data-mute="every">Ogni X</button>
+      <button data-mute="range">Fascia</button>
+    </div>
+    <div id="mute-every-row" style="display:none;margin-top:8px">
+      <div class="cfg-label">Ogni <span id="mute-every-val" style="color:var(--text)">4</span> beat</div>
+      <input type="range" id="mute-every" min="2" max="8" value="4" style="margin-top:6px">
+      <div class="range-row"><span>2</span><span>8</span></div>
+    </div>
+    <div id="mute-range-row" style="display:none;margin-top:8px">
+      <div style="display:flex;gap:10px">
+        <div style="flex:1">
+          <div class="cfg-label">Da <span id="mute-from-val" style="color:var(--text)">10</span>s</div>
+          <input type="range" id="mute-from" min="0" max="119" step="1" value="10" style="margin-top:4px">
+        </div>
+        <div style="flex:1">
+          <div class="cfg-label">A <span id="mute-to-val" style="color:var(--text)">20</span>s</div>
+          <input type="range" id="mute-to" min="1" max="120" step="1" value="20" style="margin-top:4px">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cfg-section">
     <div class="cfg-label">Input</div>
     <div class="btn-group" id="input-btns">
       <button data-input="tap" class="active">Tap</button>
@@ -258,7 +330,7 @@
   const SCHED_INT  = 50;   // ms scheduler interval
   const COOLDOWN   = 0.08; // seconds between mic onsets
 
-  let cfg = { bpm: 80, bars: 8, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05 };
+  let cfg = { bpm: 80, durationSec: 30, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05, muteMode: 'none', muteEvery: 4, muteFrom: 10, muteTo: 20 };
 
   // ─── State ────────────────────────────────────────────────────────────────
   let phase = 'config';
@@ -312,19 +384,33 @@
   function isQuarterBeat(totalIdx) { return totalIdx % cfg.subdivision === 0; }
   function isAccentBeat(totalIdx)  { return totalIdx % (cfg.subdivision * 4) === 0; }
 
+  function isMuted(totalIdx, time) {
+    if (cfg.muteMode === 'none') return false;
+    if (cfg.muteMode === 'every') {
+      const qi = Math.floor(totalIdx / cfg.subdivision); // quarter beat index (0-based)
+      return (qi + 1) % cfg.muteEvery === 0;
+    }
+    if (cfg.muteMode === 'range') {
+      const elapsed = time - sessionStart;
+      return elapsed >= cfg.muteFrom && elapsed <= cfg.muteTo;
+    }
+    return false;
+  }
+
   // ─── Metronome scheduler ──────────────────────────────────────────────────
   function scheduleSubdiv(time, totalIdx) {
     const accent  = isAccentBeat(totalIdx);
     const quarter = isQuarterBeat(totalIdx);
-    scheduleClick(time, accent, !quarter);
+    const muted   = isMuted(totalIdx, time);
+    if (!muted) scheduleClick(time, accent, !quarter);
 
     const lbl = getLabel(totalIdx);
-    allMarkers.push({ time, totalIdx, label: lbl, isAccent: accent, isQuarter: quarter });
+    allMarkers.push({ time, totalIdx, label: lbl, isAccent: accent, isQuarter: quarter, muted });
 
     const delay = (time - getCtx().currentTime) * 1000;
     setTimeout(() => {
       if (phase !== 'playing') return;
-      updateBeatDisplay(lbl, accent, quarter);
+      updateBeatDisplay(lbl, accent, quarter, muted);
     }, Math.max(0, delay));
   }
 
@@ -458,7 +544,7 @@
     allMarkers     = [];
     onsets         = [];
     subdivsScheduled = 0;
-    totalSubdivs   = cfg.bars * 4 * cfg.subdivision;
+    totalSubdivs   = Math.round(cfg.durationSec * cfg.bpm / 60) * cfg.subdivision;
     nextBeatTime   = getCtx().currentTime + 0.05;
     sessionStart   = nextBeatTime;
     renderPlaying();
@@ -479,14 +565,14 @@
   }
 
   // ─── Visual updates ───────────────────────────────────────────────────────
-  function updateBeatDisplay(lbl, isAccent, isQuarter) {
+  function updateBeatDisplay(lbl, isAccent, isQuarter, muted = false) {
     const ring = document.getElementById('beat-ring');
     const num  = document.getElementById('beat-num');
     const sub  = document.getElementById('beat-sub');
     const bar  = document.getElementById('bar-label');
     if (!ring) return;
 
-    ring.className = 'beat-ring ' + (isAccent ? 'accent' : isQuarter ? 'beat' : 'subdiv');
+    ring.className = 'beat-ring ' + (muted ? 'muted' : isAccent ? 'accent' : isQuarter ? 'beat' : 'subdiv');
     if (num) num.textContent = lbl.beat;
     if (sub) sub.textContent = lbl.sub;
     setTimeout(() => { if (ring) ring.className = 'beat-ring'; }, 120);
@@ -497,9 +583,8 @@
     if (fill) fill.style.width = pct + '%';
 
     if (bar && isQuarter) {
-      const quarterIdx = Math.floor(allMarkers.length / cfg.subdivision);
-      const currentBar = Math.floor(quarterIdx / 4) + 1;
-      bar.textContent  = `Battuta ${currentBar} / ${cfg.bars}`;
+      const elapsedSec = Math.round((allMarkers.length / cfg.subdivision) / cfg.bpm * 60);
+      bar.textContent = `${elapsedSec}s / ${cfg.durationSec}s`;
     }
   }
 
@@ -559,6 +644,37 @@
     return { inTime, early, late, offBeat, missed, total, avg, std, pctIn };
   }
 
+  function buildLog() {
+    const r = computeReport();
+    const subdiv = cfg.subdivision === 1 ? '4th' : cfg.subdivision === 2 ? '8th' : '16th';
+    const lines = [
+      `# Rhythm Trainer — Session Log`,
+      `# BPM: ${cfg.bpm} | Duration: ${cfg.durationSec}s | Subdiv: ${subdiv} | Margin: ±${cfg.marginMs}ms | Input: ${cfg.inputMode}` +
+       (cfg.muteMode === 'every' ? ` | Mute: every ${cfg.muteEvery} beats` : cfg.muteMode === 'range' ? ` | Mute: ${cfg.muteFrom}s–${cfg.muteTo}s` : ''),
+      `# Hits: ${r.total} | In tempo: ${r.pctIn}% | Avg offset: ${Math.round(r.avg)}ms | Std dev: ${Math.round(r.std)}ms`,
+      ``,
+      `#    #   MarkerIdx  Beat       Offset(ms)   Category`,
+    ];
+    onsets.forEach((o, i) => {
+      const m = allMarkers.find(mk => mk.totalIdx === o.markerIdx);
+      const label = m ? (m.label.beat + (m.label.sub || '')) : 'OFF';
+      const sign  = o.offset >= 0 ? '+' : '';
+      lines.push(
+        `  ${String(i + 1).padStart(4)}   ${m ? String(o.markerIdx + 1).padStart(8) : '     OFF'}   ${label.padEnd(8)}   ${(sign + Math.round(o.offset) + 'ms').padStart(8)}   ${o.category}`
+      );
+    });
+    if (!cfg.silencesAllowed) {
+      const hit = new Set(onsets.filter(o => o.category !== 'off_beat').map(o => o.markerIdx));
+      allMarkers
+        .filter(m => m.isQuarter && !hit.has(m.totalIdx))
+        .forEach(m => {
+          const label = m.label.beat + (m.label.sub || '');
+          lines.push(`  MISS          ${String(m.totalIdx + 1).padStart(8)}   ${label.padEnd(8)}          —   missed`);
+        });
+    }
+    return lines.join('\n');
+  }
+
   // ─── Canvas charts ────────────────────────────────────────────────────────
   function drawScatter(canvas) {
     const ctx2 = canvas.getContext('2d');
@@ -596,19 +712,17 @@
     [[MAX_MS, PAD.t + 4], [0, y0 + 4], [-MAX_MS, PAD.t + ph + 4]].forEach(([ms, y]) =>
       ctx2.fillText((ms > 0 ? '+' : '') + ms, PAD.l - 4, y));
 
-    // X labels (bars)
+    // X labels (time)
     ctx2.textAlign = 'center'; ctx2.fillStyle = '#333';
-    const quarterMarkers = allMarkers.filter(m => m.isQuarter);
     const totalDur = allMarkers.length > 1
-      ? allMarkers[allMarkers.length - 1].time - allMarkers[0].time : 1;
-    for (let b = 0; b <= cfg.bars; b++) {
-      const x = PAD.l + (b / cfg.bars) * pw;
-      if (b % 4 === 0) {
-        ctx2.strokeStyle = '#2a2a2a'; ctx2.lineWidth = 1;
-        ctx2.beginPath(); ctx2.moveTo(x, PAD.t); ctx2.lineTo(x, PAD.t + ph); ctx2.stroke();
-        ctx2.fillStyle = '#333';
-        ctx2.fillText('B' + (b + 1), x, PAD.t + ph + 14);
-      }
+      ? allMarkers[allMarkers.length - 1].time - allMarkers[0].time : cfg.durationSec;
+    const tStep = cfg.durationSec <= 20 ? 5 : cfg.durationSec <= 60 ? 10 : 30;
+    for (let t = 0; t <= cfg.durationSec; t += tStep) {
+      const x = PAD.l + (t / totalDur) * pw;
+      ctx2.strokeStyle = '#2a2a2a'; ctx2.lineWidth = 1;
+      ctx2.beginPath(); ctx2.moveTo(x, PAD.t); ctx2.lineTo(x, PAD.t + ph); ctx2.stroke();
+      ctx2.fillStyle = '#333';
+      ctx2.fillText(t + 's', x, PAD.t + ph + 14);
     }
 
     // Missed beats
@@ -686,6 +800,97 @@
     ctx2.fillText('+200', PAD.l + pw, PAD.t + ph + 12);
   }
 
+  // ─── History ─────────────────────────────────────────────────────────────
+  const HIST_KEY = 'rhythm-history';
+
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HIST_KEY)) || []; }
+    catch { return []; }
+  }
+
+  function saveSession(r) {
+    const s = {
+      ts: Date.now(), bpm: cfg.bpm, dur: cfg.durationSec, sub: cfg.subdivision,
+      pctIn: r.pctIn, early: r.early, late: r.late,
+      avg: Math.round(r.avg), std: Math.round(r.std),
+      offBeat: r.offBeat, missed: r.missed, total: r.total
+    };
+    const hist = loadHistory();
+    hist.unshift(s);
+    if (hist.length > 10) hist.length = 10;
+    localStorage.setItem(HIST_KEY, JSON.stringify(hist));
+  }
+
+  function computeBests(hist) {
+    if (!hist.length) return null;
+    return {
+      pctIn:   Math.max(...hist.map(s => s.pctIn)),
+      avgAbs:  Math.min(...hist.map(s => Math.abs(s.avg))),
+      std:     Math.min(...hist.map(s => s.std)),
+      offBeat: Math.min(...hist.map(s => s.offBeat)),
+    };
+  }
+
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} `
+         + `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  function buildProgressPane() {
+    const hist   = loadHistory();
+    const bests  = computeBests(hist);
+    const subdiv = s => s.sub === 1 ? '♩' : s.sub === 2 ? '♩♩' : '♩♩♩♩';
+
+    if (!hist.length) return `<p style="color:var(--muted);text-align:center;padding:32px 0">Nessuna sessione ancora.</p>`;
+
+    const bestsHtml = bests ? `
+      <div>
+        <div class="section-label">Migliore di sempre</div>
+        <div class="bests-grid">
+          <div class="stat-card"><div class="stat-value green">${bests.pctIn}%</div><div class="stat-label">In tempo</div></div>
+          <div class="stat-card"><div class="stat-value green">${bests.avgAbs}ms</div><div class="stat-label">Scarto medio</div></div>
+          <div class="stat-card"><div class="stat-value green">${bests.std}ms</div><div class="stat-label">Dev. std</div></div>
+          <div class="stat-card"><div class="stat-value green">${bests.offBeat}</div><div class="stat-label">Off-beat</div></div>
+        </div>
+      </div>` : '';
+
+    const rows = hist.map((s, i) => {
+      const isCur  = i === 0;
+      const pctCol = s.pctIn >= 80 ? 'green' : s.pctIn >= 60 ? 'yellow' : 'red';
+      const isBest = bests && {
+        pctIn:  s.pctIn   === bests.pctIn,
+        avg:    Math.abs(s.avg) === bests.avgAbs,
+        std:    s.std     === bests.std,
+        off:    s.offBeat === bests.offBeat,
+      };
+      return `<tr${isCur ? ' class="cur"' : ''}>
+        <td>${fmtDate(s.ts)}</td>
+        <td>${s.bpm} <span style="color:var(--muted);font-size:0.7rem">${subdiv(s)}</span></td>
+        <td>${s.dur}s</td>
+        <td class="${pctCol}${isBest.pctIn ? ' best' : ''}">${s.pctIn}%</td>
+        <td class="${isBest.avg ? 'best' : ''}">${s.avg >= 0 ? '+' : ''}${s.avg}ms</td>
+        <td class="${isBest.std ? 'best' : ''}">${s.std}ms</td>
+        <td class="${isBest.off ? 'best' : ''}">${s.offBeat}</td>
+      </tr>`;
+    }).join('');
+
+    return bestsHtml + `
+      <div>
+        <div class="section-label">Ultime ${hist.length} sessioni</div>
+        <div class="history-wrap">
+          <table class="history-table">
+            <thead><tr>
+              <th>Data</th><th>BPM</th><th>Dur</th>
+              <th>In tempo</th><th>Avg</th><th>Std</th><th>Off</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+      <button class="btn-action btn-danger" id="btn-reset-hist" style="max-width:180px">Azzera progressi</button>`;
+  }
+
   // ─── Render ───────────────────────────────────────────────────────────────
   const mainEl = () => document.getElementById('main');
 
@@ -727,7 +932,7 @@
       : micSection;
 
     mainEl().innerHTML = `
-      <div class="bar-label" id="bar-label">Battuta 1 / ${cfg.bars}</div>
+      <div class="bar-label" id="bar-label">0s / ${cfg.durationSec}s</div>
       <div class="beat-ring" id="beat-ring">
         <div class="beat-num" id="beat-num">1</div>
         <div class="beat-sub" id="beat-sub"></div>
@@ -749,44 +954,57 @@
   }
 
   function renderReport() {
-    const r   = computeReport();
+    const r       = computeReport();
+    saveSession(r);
     const avgSign = r.avg >= 0 ? '+' : '';
     const avgCol  = Math.abs(r.avg) <= cfg.marginMs ? 'green' : Math.abs(r.avg) <= cfg.marginMs * 2 ? 'yellow' : 'red';
-
     const missedCard = !cfg.silencesAllowed
       ? `<div class="stat-card"><div class="stat-value ${r.missed > 0 ? 'red' : 'green'}">${r.missed}</div><div class="stat-label">Mancati</div></div>`
       : '';
 
     mainEl().innerHTML = `
       <div class="report-screen">
-        <h2>Report</h2>
-        <div class="stat-grid">
-          <div class="stat-card"><div class="stat-value green">${r.pctIn}%</div><div class="stat-label">In tempo</div></div>
-          <div class="stat-card"><div class="stat-value yellow">${r.early}</div><div class="stat-label">Anticipati</div></div>
-          <div class="stat-card"><div class="stat-value yellow">${r.late}</div><div class="stat-label">In ritardo</div></div>
-          <div class="stat-card"><div class="stat-value ${avgCol}">${avgSign}${Math.round(r.avg)}ms</div><div class="stat-label">Scarto medio</div></div>
-          <div class="stat-card"><div class="stat-value muted">${Math.round(r.std)}ms</div><div class="stat-label">Dev. standard</div></div>
-          <div class="stat-card"><div class="stat-value red">${r.offBeat}</div><div class="stat-label">Off-beat</div></div>
-          ${missedCard}
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="session">Sessione</button>
+          <button class="tab-btn" data-tab="progress">Progressi</button>
         </div>
 
-        <div class="chart-card">
-          <div class="chart-title">Timeline — scarto per colpo (ms)</div>
-          <canvas id="scatter" width="580" height="160"></canvas>
-        </div>
-
-        <div class="charts-row">
-          <div class="chart-card">
-            <div class="chart-title">Distribuzione scarti</div>
-            <canvas id="histogram" width="340" height="120"></canvas>
+        <div class="tab-pane active" id="pane-session">
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-value green">${r.pctIn}%</div><div class="stat-label">In tempo</div></div>
+            <div class="stat-card"><div class="stat-value yellow">${r.early}</div><div class="stat-label">Anticipati</div></div>
+            <div class="stat-card"><div class="stat-value yellow">${r.late}</div><div class="stat-label">In ritardo</div></div>
+            <div class="stat-card"><div class="stat-value ${avgCol}">${avgSign}${Math.round(r.avg)}ms</div><div class="stat-label">Scarto medio</div></div>
+            <div class="stat-card"><div class="stat-value muted">${Math.round(r.std)}ms</div><div class="stat-label">Dev. standard</div></div>
+            <div class="stat-card"><div class="stat-value red">${r.offBeat}</div><div class="stat-label">Off-beat</div></div>
+            ${missedCard}
           </div>
           <div class="chart-card">
-            <div class="chart-title">Off-beat</div>
-            <div class="offbeat-list" id="offbeat-list">
-              ${r.offBeat === 0 ? '<span style="color:var(--muted)">Nessuno</span>' : ''}
+            <div class="chart-title">Timeline — scarto per colpo (ms)</div>
+            <canvas id="scatter" width="580" height="160"></canvas>
+          </div>
+          <div class="charts-row">
+            <div class="chart-card">
+              <div class="chart-title">Distribuzione scarti</div>
+              <canvas id="histogram" width="340" height="120"></canvas>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">Off-beat</div>
+              <div class="offbeat-list" id="offbeat-list">
+                ${r.offBeat === 0 ? '<span style="color:var(--muted)">Nessuno</span>' : ''}
+              </div>
             </div>
           </div>
+          <div class="log-card">
+            <div class="log-header">
+              <div class="chart-title">Log colpi</div>
+              <button class="btn-copy" id="btn-copy">Copia</button>
+            </div>
+            <textarea class="log-text" id="log-text" readonly></textarea>
+          </div>
         </div>
+
+        <div class="tab-pane" id="pane-progress"></div>
 
         <div class="controls">
           <button class="btn-action" id="btn-again">Ancora</button>
@@ -796,6 +1014,25 @@
 
     document.getElementById('btn-again').onclick = startCountdown;
     document.getElementById('btn-new').onclick   = renderStart;
+
+    // Tab switching
+    mainEl().querySelector('.tabs').addEventListener('click', e => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      const tab = btn.dataset.tab;
+      mainEl().querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      mainEl().querySelectorAll('.tab-pane').forEach(p => p.classList.toggle('active', p.id === 'pane-' + tab));
+      if (tab === 'progress') {
+        const pane = document.getElementById('pane-progress');
+        pane.innerHTML = buildProgressPane();
+        const resetBtn = document.getElementById('btn-reset-hist');
+        if (resetBtn) resetBtn.onclick = () => {
+          if (!confirm('Azzera tutta la cronologia?')) return;
+          localStorage.removeItem(HIST_KEY);
+          pane.innerHTML = buildProgressPane();
+        };
+      }
+    });
 
     // Off-beat list
     const obList = document.getElementById('offbeat-list');
@@ -808,12 +1045,22 @@
         }).join('');
     }
 
-    // Draw charts after DOM is ready
+    // Draw charts and populate log after DOM is ready
     requestAnimationFrame(() => {
       const sc = document.getElementById('scatter');
       const hi = document.getElementById('histogram');
       if (sc) drawScatter(sc);
       if (hi) drawHistogram(hi);
+
+      const logEl   = document.getElementById('log-text');
+      const copyBtn = document.getElementById('btn-copy');
+      if (logEl) logEl.value = buildLog();
+      if (copyBtn) copyBtn.onclick = () => {
+        navigator.clipboard.writeText(logEl.value);
+        copyBtn.textContent = 'Copiato!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => { copyBtn.textContent = 'Copia'; copyBtn.classList.remove('copied'); }, 1500);
+      };
     });
   }
 
@@ -833,11 +1080,37 @@
     const bpmVal = document.getElementById('bpm-val');
     bpmEl.oninput = () => { cfg.bpm = +bpmEl.value; bpmVal.textContent = cfg.bpm; };
 
-    document.getElementById('bars-btns').onclick = e => {
-      const btn = e.target.closest('button[data-bars]');
+    const durEl  = document.getElementById('duration');
+    const durVal = document.getElementById('dur-val');
+    durEl.oninput = () => { cfg.durationSec = +durEl.value; durVal.textContent = cfg.durationSec + 's'; };
+
+    document.getElementById('mute-btns').onclick = e => {
+      const btn = e.target.closest('button[data-mute]');
       if (!btn) return;
-      cfg.bars = +btn.dataset.bars;
-      document.querySelectorAll('#bars-btns button').forEach(b => b.classList.toggle('active', b === btn));
+      cfg.muteMode = btn.dataset.mute;
+      document.querySelectorAll('#mute-btns button').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('mute-every-row').style.display = cfg.muteMode === 'every' ? 'block' : 'none';
+      document.getElementById('mute-range-row').style.display = cfg.muteMode === 'range' ? 'block' : 'none';
+    };
+
+    const muteEveryEl  = document.getElementById('mute-every');
+    const muteEveryVal = document.getElementById('mute-every-val');
+    muteEveryEl.oninput = () => { cfg.muteEvery = +muteEveryEl.value; muteEveryVal.textContent = cfg.muteEvery; };
+
+    const muteFromEl  = document.getElementById('mute-from');
+    const muteFromVal = document.getElementById('mute-from-val');
+    muteFromEl.oninput = () => {
+      cfg.muteFrom = +muteFromEl.value;
+      muteFromVal.textContent = cfg.muteFrom;
+      if (cfg.muteFrom >= cfg.muteTo) { cfg.muteTo = cfg.muteFrom + 1; muteToEl.value = cfg.muteTo; muteToVal.textContent = cfg.muteTo; }
+    };
+
+    const muteToEl  = document.getElementById('mute-to');
+    const muteToVal = document.getElementById('mute-to-val');
+    muteToEl.oninput = () => {
+      cfg.muteTo = +muteToEl.value;
+      muteToVal.textContent = cfg.muteTo;
+      if (cfg.muteTo <= cfg.muteFrom) { cfg.muteFrom = cfg.muteTo - 1; muteFromEl.value = cfg.muteFrom; muteFromVal.textContent = cfg.muteFrom; }
     };
 
     document.getElementById('subdiv-btns').onclick = e => {
