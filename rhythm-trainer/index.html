@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhythm Trainer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0d; --surface: #141414; --surface2: #1a1a1a;
+      --border: #222; --accent: #7c6ff7; --accent-dim: #4a45a0;
+      --text: #e8e8e8; --muted: #666; --radius: 10px;
+      --green: #4be89a; --yellow: #e8c34b; --red: #e84b4b;
+    }
+
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    header {
+      grid-column: 1 / -1;
+      padding: 18px 28px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 16px;
+    }
+    header a { color: var(--muted); text-decoration: none; font-size: 0.82rem; transition: color 0.15s; }
+    header a:hover { color: var(--text); }
+    header h1 { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+
+    aside {
+      border-right: 1px solid var(--border);
+      padding: 22px 18px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto;
+    }
+
+    .cfg-section { display: flex; flex-direction: column; gap: 10px; }
+    .cfg-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+
+    input[type=range] {
+      -webkit-appearance: none; width: 100%; height: 4px;
+      background: var(--border); border-radius: 2px; outline: none; cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 16px; height: 16px;
+      border-radius: 50%; background: var(--accent); cursor: pointer;
+    }
+
+    .btn-group { display: flex; gap: 5px; }
+    .btn-group button {
+      flex: 1; padding: 7px 4px;
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--muted); font-size: 0.78rem; cursor: pointer; transition: all 0.15s;
+    }
+    .btn-group button.active { background: var(--accent-dim); border-color: var(--accent); color: var(--text); }
+    .btn-group button:hover:not(.active) { border-color: #444; color: var(--text); }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; }
+    .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: var(--border); border-radius: 10px;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 14px; height: 14px;
+      left: 3px; top: 3px; background: var(--muted); border-radius: 50%;
+      transition: transform 0.2s, background 0.2s;
+    }
+    .toggle input:checked + .toggle-slider { background: var(--accent-dim); }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(16px); background: var(--accent); }
+
+    .range-row { display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--muted); }
+
+    main {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 40px 32px; gap: 24px;
+    }
+
+    /* START */
+    .start-screen { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .start-screen h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+    .start-screen p { color: var(--muted); font-size: 0.88rem; max-width: 320px; line-height: 1.6; }
+
+    /* COUNTDOWN / PLAYING */
+    .beat-ring {
+      width: 180px; height: 180px; border-radius: 50%;
+      border: 3px solid var(--border);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      transition: border-color 0.06s, box-shadow 0.06s;
+      position: relative;
+    }
+    .beat-ring.accent  { border-color: var(--accent); box-shadow: 0 0 36px rgba(124,111,247,0.5); }
+    .beat-ring.beat    { border-color: #555; box-shadow: 0 0 18px rgba(100,100,100,0.25); }
+    .beat-ring.subdiv  { border-color: #333; }
+    .beat-num  { font-size: 4rem; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+    .beat-sub  { font-size: 1.1rem; color: var(--muted); margin-top: 2px; min-height: 1.4em; }
+    .bar-label { font-size: 0.75rem; color: var(--muted); }
+
+    .feedback-flash {
+      font-size: 0.9rem; font-weight: 600; font-variant-numeric: tabular-nums;
+      min-height: 1.4em; transition: color 0.1s;
+    }
+
+    .tap-btn {
+      width: 120px; height: 120px; border-radius: 50%;
+      background: var(--surface); border: 2px solid var(--border);
+      color: var(--text); font-size: 1rem; font-weight: 600;
+      cursor: pointer; transition: transform 0.08s, background 0.08s, border-color 0.08s;
+      letter-spacing: 0.05em;
+    }
+    .tap-btn:active, .tap-btn.tapped { transform: scale(0.93); }
+    .tap-btn.hit-in    { background: rgba(75,232,154,0.15); border-color: var(--green); }
+    .tap-btn.hit-early { background: rgba(232,195,75,0.15); border-color: var(--yellow); }
+    .tap-btn.hit-late  { background: rgba(232,195,75,0.15); border-color: var(--yellow); }
+    .tap-btn.hit-off   { background: rgba(232,75,75,0.12);  border-color: var(--red); }
+
+    .progress-bar { width: 100%; max-width: 480px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s linear; }
+
+    .mic-indicator {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.8rem; color: var(--muted);
+    }
+    .mic-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); transition: background 0.1s; }
+    .mic-dot.active { background: var(--green); box-shadow: 0 0 8px var(--green); }
+
+    /* REPORT */
+    .report-screen { width: 100%; max-width: 640px; display: flex; flex-direction: column; gap: 20px; }
+    .report-screen h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; }
+
+    .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .stat-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+    .stat-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); }
+    .stat-value.green  { color: var(--green); }
+    .stat-value.yellow { color: var(--yellow); }
+    .stat-value.red    { color: var(--red); }
+    .stat-value.muted  { color: var(--muted); }
+
+    .chart-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .chart-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; }
+    canvas { display: block; border-radius: 4px; }
+
+    .charts-row { display: grid; grid-template-columns: 1fr 200px; gap: 10px; }
+
+    .offbeat-list { font-size: 0.78rem; color: var(--muted); line-height: 1.8; }
+    .offbeat-list span { color: var(--red); font-weight: 600; margin-right: 6px; }
+
+    .btn-action {
+      padding: 11px 24px; border-radius: 8px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); font-size: 0.88rem; font-weight: 500;
+      cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .btn-action:hover { border-color: var(--accent-dim); }
+    .btn-action.primary { background: var(--accent); border-color: var(--accent); }
+    .btn-action.primary:hover { background: #9088f9; }
+
+    .controls { display: flex; gap: 10px; width: 100%; max-width: 480px; }
+    .controls .btn-action { flex: 1; }
+
+    footer {
+      grid-column: 1 / -1; padding: 14px 28px; border-top: 1px solid var(--border);
+      text-align: center; font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    @media (max-width: 640px) {
+      body { grid-template-columns: 1fr; }
+      aside { border-right: none; border-bottom: 1px solid var(--border); }
+      main { padding: 28px 16px; }
+      .charts-row { grid-template-columns: 1fr; }
+      .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="../index.html">← Exp Lab</a>
+  <h1>Rhythm Trainer</h1>
+</header>
+
+<aside>
+  <div class="cfg-section">
+    <div class="cfg-label">BPM &nbsp;<span id="bpm-val" style="color:var(--text);font-weight:700">80</span></div>
+    <input type="range" id="bpm" min="40" max="200" value="80">
+    <div class="range-row"><span>40</span><span>200</span></div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-label">Durata (battute)</div>
+    <div class="btn-group" id="bars-btns">
+      <button data-bars="4">4</button>
+      <button data-bars="8" class="active">8</button>
+      <button data-bars="16">16</button>
+      <button data-bars="32">32</button>
+    </div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-label">Suddivisione</div>
+    <div class="btn-group" id="subdiv-btns">
+      <button data-sub="1" class="active">♩</button>
+      <button data-sub="2">♩♩</button>
+      <button data-sub="4">♩♩♩♩</button>
+    </div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-label">Margine</div>
+    <div class="btn-group" id="margin-btns">
+      <button data-ms="20">±20ms</button>
+      <button data-ms="40" class="active">±40ms</button>
+      <button data-ms="80">±80ms</button>
+    </div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="toggle-row">
+      <span>Silenzi ammessi</span>
+      <label class="toggle"><input type="checkbox" id="silence-toggle" checked><span class="toggle-slider"></span></label>
+    </div>
+  </div>
+
+  <div class="cfg-section">
+    <div class="cfg-label">Input</div>
+    <div class="btn-group" id="input-btns">
+      <button data-input="tap" class="active">Tap</button>
+      <button data-input="mic">Microfono</button>
+    </div>
+    <div id="sensitivity-row" style="display:none">
+      <div class="cfg-label" style="margin-top:6px">Sensibilità &nbsp;<span id="sens-val" style="color:var(--text)">5</span></div>
+      <input type="range" id="sensitivity" min="1" max="10" value="5">
+    </div>
+  </div>
+</aside>
+
+<main id="main"></main>
+
+<footer>
+  esperimenti by <a href="https://devinred.com" target="_blank">devinred.com</a>
+</footer>
+
+<script>
+  // ─── Config ───────────────────────────────────────────────────────────────
+  const LOOKAHEAD  = 0.12; // seconds Web Audio lookahead
+  const SCHED_INT  = 50;   // ms scheduler interval
+  const COOLDOWN   = 0.08; // seconds between mic onsets
+
+  let cfg = { bpm: 80, bars: 8, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05 };
+
+  // ─── State ────────────────────────────────────────────────────────────────
+  let phase = 'config';
+  let audioCtx = null;
+  let micStream = null, micAnalyser = null, micBuf = null, micRaf = null;
+  let prevRms = 0, lastOnsetTime = -Infinity;
+  let schedulerTimer = null;
+  let allMarkers = [];   // { time, totalIdx, label, isAccent, isQuarter }
+  let onsets = [];       // { time, markerIdx, offset, category }
+  let subdivsScheduled = 0, totalSubdivs = 0;
+  let nextBeatTime = 0;
+  let sessionStart = 0;
+  let countdownLeft = 0;
+
+  // ─── Audio ────────────────────────────────────────────────────────────────
+  function getCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+
+  function scheduleClick(time, isAccent, isSubdiv) {
+    const ctx = getCtx();
+    const freq = isAccent ? 1200 : 880;
+    const vol  = isAccent ? 0.7  : 0.45;
+    const dur  = 0.05;
+    if (isSubdiv) return; // no click on subdivisions, only quarter beats
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(vol, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(time);
+    osc.stop(time + dur + 0.01);
+  }
+
+  // ─── Beat labels ─────────────────────────────────────────────────────────
+  function getLabel(totalIdx) {
+    const sub = cfg.subdivision;
+    const quarter = Math.floor(totalIdx / sub);
+    const s       = totalIdx % sub;
+    const beatNum = (quarter % 4) + 1;
+    if (sub === 1) return { beat: String(beatNum), sub: '' };
+    if (sub === 2) return { beat: String(beatNum), sub: s === 0 ? '' : '+' };
+    const subs = ['', 'e', '+', 'a'];
+    return { beat: String(beatNum), sub: subs[s] };
+  }
+
+  function isQuarterBeat(totalIdx) { return totalIdx % cfg.subdivision === 0; }
+  function isAccentBeat(totalIdx)  { return totalIdx % (cfg.subdivision * 4) === 0; }
+
+  // ─── Metronome scheduler ──────────────────────────────────────────────────
+  function scheduleSubdiv(time, totalIdx) {
+    const accent  = isAccentBeat(totalIdx);
+    const quarter = isQuarterBeat(totalIdx);
+    scheduleClick(time, accent, !quarter);
+
+    const lbl = getLabel(totalIdx);
+    allMarkers.push({ time, totalIdx, label: lbl, isAccent: accent, isQuarter: quarter });
+
+    const delay = (time - getCtx().currentTime) * 1000;
+    setTimeout(() => {
+      if (phase !== 'playing') return;
+      updateBeatDisplay(lbl, accent, quarter);
+    }, Math.max(0, delay));
+  }
+
+  function scheduler() {
+    const ctx = getCtx();
+    const subdivInterval = 60 / cfg.bpm / cfg.subdivision;
+
+    while (nextBeatTime < ctx.currentTime + LOOKAHEAD && subdivsScheduled < totalSubdivs) {
+      scheduleSubdiv(nextBeatTime, subdivsScheduled);
+      nextBeatTime += subdivInterval;
+      subdivsScheduled++;
+    }
+
+    if (subdivsScheduled < totalSubdivs) {
+      schedulerTimer = setTimeout(scheduler, SCHED_INT);
+    } else {
+      const endDelay = (nextBeatTime - ctx.currentTime) * 1000 + 300;
+      setTimeout(endSession, Math.max(300, endDelay));
+    }
+  }
+
+  // ─── Onset detection ──────────────────────────────────────────────────────
+  function recordOnset(time) {
+    if (phase !== 'playing' || allMarkers.length === 0) return;
+
+    // Find nearest marker within half a subdivision interval
+    const halfInterval = (60 / cfg.bpm / cfg.subdivision / 2);
+    let nearest = null, minDist = Infinity;
+    for (let i = allMarkers.length - 1; i >= 0 && i >= allMarkers.length - 20; i--) {
+      const d = Math.abs(allMarkers[i].time - time);
+      if (d < minDist) { minDist = d; nearest = allMarkers[i]; }
+    }
+    // also check a few future markers
+    const futureIdx = Math.min(allMarkers.length - 1, subdivsScheduled + 3);
+    for (let i = allMarkers.length - 1; i <= futureIdx && i < allMarkers.length; i++) {
+      if (i < 0) continue;
+      const d = Math.abs(allMarkers[i].time - time);
+      if (d < minDist) { minDist = d; nearest = allMarkers[i]; }
+    }
+
+    if (!nearest) return;
+
+    const offsetMs  = (time - nearest.time) * 1000;
+    const halfMs    = halfInterval * 1000;
+    const category  =
+      minDist * 1000 > halfMs        ? 'off_beat' :
+      Math.abs(offsetMs) <= cfg.marginMs ? 'in_time' :
+      offsetMs < 0                   ? 'early' : 'late';
+
+    onsets.push({ time, markerIdx: nearest.totalIdx, offset: offsetMs, category });
+    showTapFeedback(category, offsetMs);
+  }
+
+  function computeRms(buf) {
+    let s = 0;
+    for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+    return Math.sqrt(s / buf.length);
+  }
+
+  function micLoop() {
+    if (!micAnalyser || phase === 'config') { micRaf = requestAnimationFrame(micLoop); return; }
+    micAnalyser.getFloatTimeDomainData(micBuf);
+    const rms   = computeRms(micBuf);
+    const delta = rms - prevRms;
+    prevRms     = rms;
+    const ctx   = getCtx();
+    const now   = ctx.currentTime;
+
+    // Update mic dot
+    const dot = document.getElementById('mic-dot');
+    if (dot) dot.classList.toggle('active', rms > 0.02);
+
+    if (delta > cfg.sensitivity && (now - lastOnsetTime) > COOLDOWN) {
+      lastOnsetTime = now;
+      if (phase === 'playing') recordOnset(now);
+    }
+    micRaf = requestAnimationFrame(micLoop);
+  }
+
+  async function startMic() {
+    if (micStream) return;
+    try {
+      micStream   = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const mCtx  = getCtx();
+      micAnalyser = mCtx.createAnalyser();
+      micAnalyser.fftSize = 1024;
+      micBuf      = new Float32Array(micAnalyser.fftSize);
+      mCtx.createMediaStreamSource(micStream).connect(micAnalyser);
+      micRaf      = requestAnimationFrame(micLoop);
+    } catch(e) {
+      alert('Microfono non disponibile. Usa la modalità Tap.');
+      cfg.inputMode = 'tap';
+      document.querySelectorAll('#input-btns button').forEach(b =>
+        b.classList.toggle('active', b.dataset.input === 'tap'));
+    }
+  }
+
+  function stopMic() {
+    if (micRaf)    { cancelAnimationFrame(micRaf); micRaf = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    micAnalyser = null; micBuf = null; prevRms = 0;
+  }
+
+  // ─── Session lifecycle ────────────────────────────────────────────────────
+  function startCountdown() {
+    phase = 'countdown';
+    renderCountdown();
+    const ctx     = getCtx();
+    const beatInt = 60 / cfg.bpm;
+    let   t       = ctx.currentTime + 0.15;
+    countdownLeft = 4;
+
+    for (let i = 0; i < 4; i++) {
+      scheduleClick(t + i * beatInt, i === 0, false);
+      const delay = (t + i * beatInt - ctx.currentTime) * 1000;
+      const num   = i + 1;
+      setTimeout(() => {
+        countdownLeft = 4 - num;
+        const el = document.getElementById('countdown-num');
+        if (el) { el.textContent = num; el.classList.add('pulse'); setTimeout(() => el.classList.remove('pulse'), 150); }
+      }, Math.max(0, delay));
+    }
+
+    const startDelay = (t + 4 * beatInt - ctx.currentTime) * 1000;
+    setTimeout(startPlaying, Math.max(0, startDelay));
+  }
+
+  function startPlaying() {
+    if (cfg.inputMode === 'mic') startMic();
+    phase          = 'playing';
+    allMarkers     = [];
+    onsets         = [];
+    subdivsScheduled = 0;
+    totalSubdivs   = cfg.bars * 4 * cfg.subdivision;
+    nextBeatTime   = getCtx().currentTime + 0.05;
+    sessionStart   = nextBeatTime;
+    renderPlaying();
+    scheduler();
+  }
+
+  function endSession() {
+    clearTimeout(schedulerTimer);
+    phase = 'report';
+    renderReport();
+  }
+
+  function stopSession() {
+    clearTimeout(schedulerTimer);
+    phase = 'config';
+    allMarkers = []; onsets = [];
+    renderStart();
+  }
+
+  // ─── Visual updates ───────────────────────────────────────────────────────
+  function updateBeatDisplay(lbl, isAccent, isQuarter) {
+    const ring = document.getElementById('beat-ring');
+    const num  = document.getElementById('beat-num');
+    const sub  = document.getElementById('beat-sub');
+    const bar  = document.getElementById('bar-label');
+    if (!ring) return;
+
+    ring.className = 'beat-ring ' + (isAccent ? 'accent' : isQuarter ? 'beat' : 'subdiv');
+    if (num) num.textContent = lbl.beat;
+    if (sub) sub.textContent = lbl.sub;
+    setTimeout(() => { if (ring) ring.className = 'beat-ring'; }, 120);
+
+    // Progress
+    const pct = (subdivsScheduled / totalSubdivs) * 100;
+    const fill = document.getElementById('progress-fill');
+    if (fill) fill.style.width = pct + '%';
+
+    if (bar && isQuarter) {
+      const quarterIdx = Math.floor(allMarkers.length / cfg.subdivision);
+      const currentBar = Math.floor(quarterIdx / 4) + 1;
+      bar.textContent  = `Battuta ${currentBar} / ${cfg.bars}`;
+    }
+  }
+
+  let feedbackTimer = null;
+  function showTapFeedback(category, offsetMs) {
+    const tapBtn  = document.getElementById('tap-btn');
+    const feedEl  = document.getElementById('feedback');
+
+    clearTimeout(feedbackTimer);
+
+    if (tapBtn) {
+      tapBtn.className = 'tap-btn hit-' + (
+        category === 'in_time' ? 'in' :
+        category === 'early'   ? 'early' :
+        category === 'late'    ? 'late' : 'off');
+    }
+
+    if (feedEl) {
+      const sign = offsetMs >= 0 ? '+' : '';
+      const col  = category === 'in_time' ? 'var(--green)' :
+                   category === 'off_beat' ? 'var(--red)' : 'var(--yellow)';
+      feedEl.style.color   = col;
+      feedEl.textContent   = category === 'off_beat'
+        ? 'off-beat'
+        : `${sign}${Math.round(offsetMs)}ms`;
+    }
+
+    feedbackTimer = setTimeout(() => {
+      if (tapBtn) tapBtn.className = 'tap-btn';
+      if (feedEl) feedEl.textContent = '';
+    }, 400);
+  }
+
+  // ─── Report computation ───────────────────────────────────────────────────
+  function computeReport() {
+    const assigned = onsets.filter(o => o.category !== 'off_beat');
+    const inTime   = onsets.filter(o => o.category === 'in_time').length;
+    const early    = onsets.filter(o => o.category === 'early').length;
+    const late     = onsets.filter(o => o.category === 'late').length;
+    const offBeat  = onsets.filter(o => o.category === 'off_beat').length;
+    const total    = onsets.length;
+
+    let missed = 0;
+    if (!cfg.silencesAllowed) {
+      const hit = new Set(assigned.map(o => o.markerIdx));
+      // only check quarter beat markers
+      missed = allMarkers.filter(m => m.isQuarter && !hit.has(m.totalIdx)).length;
+    }
+
+    const avg = assigned.length > 0
+      ? assigned.reduce((s, o) => s + o.offset, 0) / assigned.length : 0;
+    const std = assigned.length > 0
+      ? Math.sqrt(assigned.reduce((s, o) => s + (o.offset - avg) ** 2, 0) / assigned.length) : 0;
+
+    const pctIn = total > 0 ? Math.round(inTime / total * 100) : 0;
+
+    return { inTime, early, late, offBeat, missed, total, avg, std, pctIn };
+  }
+
+  // ─── Canvas charts ────────────────────────────────────────────────────────
+  function drawScatter(canvas) {
+    const ctx2 = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const PAD = { t: 16, r: 16, b: 24, l: 42 };
+    const pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b;
+    const MAX_MS = 200;
+
+    ctx2.fillStyle = '#111'; ctx2.fillRect(0, 0, W, H);
+
+    // Grid
+    ctx2.strokeStyle = '#1e1e1e'; ctx2.lineWidth = 1;
+    for (let ms = -150; ms <= 150; ms += 50) {
+      const y = PAD.t + ph / 2 - (ms / MAX_MS) * (ph / 2);
+      ctx2.beginPath(); ctx2.moveTo(PAD.l, y); ctx2.lineTo(PAD.l + pw, y); ctx2.stroke();
+    }
+
+    // Margin band
+    const yM  = PAD.t + ph / 2 - (cfg.marginMs / MAX_MS) * (ph / 2);
+    const yMn = PAD.t + ph / 2 + (cfg.marginMs / MAX_MS) * (ph / 2);
+    ctx2.fillStyle = 'rgba(75,232,154,0.05)';
+    ctx2.fillRect(PAD.l, yM, pw, yMn - yM);
+    ctx2.strokeStyle = 'rgba(75,232,154,0.25)'; ctx2.setLineDash([3, 3]);
+    ctx2.beginPath(); ctx2.moveTo(PAD.l, yM);  ctx2.lineTo(PAD.l + pw, yM);  ctx2.stroke();
+    ctx2.beginPath(); ctx2.moveTo(PAD.l, yMn); ctx2.lineTo(PAD.l + pw, yMn); ctx2.stroke();
+    ctx2.setLineDash([]);
+
+    // Zero line
+    const y0 = PAD.t + ph / 2;
+    ctx2.strokeStyle = '#444'; ctx2.lineWidth = 1;
+    ctx2.beginPath(); ctx2.moveTo(PAD.l, y0); ctx2.lineTo(PAD.l + pw, y0); ctx2.stroke();
+
+    // Y labels
+    ctx2.fillStyle = '#444'; ctx2.font = '10px system-ui'; ctx2.textAlign = 'right';
+    [[MAX_MS, PAD.t + 4], [0, y0 + 4], [-MAX_MS, PAD.t + ph + 4]].forEach(([ms, y]) =>
+      ctx2.fillText((ms > 0 ? '+' : '') + ms, PAD.l - 4, y));
+
+    // X labels (bars)
+    ctx2.textAlign = 'center'; ctx2.fillStyle = '#333';
+    const quarterMarkers = allMarkers.filter(m => m.isQuarter);
+    const totalDur = allMarkers.length > 1
+      ? allMarkers[allMarkers.length - 1].time - allMarkers[0].time : 1;
+    for (let b = 0; b <= cfg.bars; b++) {
+      const x = PAD.l + (b / cfg.bars) * pw;
+      if (b % 4 === 0) {
+        ctx2.strokeStyle = '#2a2a2a'; ctx2.lineWidth = 1;
+        ctx2.beginPath(); ctx2.moveTo(x, PAD.t); ctx2.lineTo(x, PAD.t + ph); ctx2.stroke();
+        ctx2.fillStyle = '#333';
+        ctx2.fillText('B' + (b + 1), x, PAD.t + ph + 14);
+      }
+    }
+
+    // Missed beats
+    if (!cfg.silencesAllowed) {
+      const hit = new Set(onsets.filter(o => o.category !== 'off_beat').map(o => o.markerIdx));
+      allMarkers.filter(m => m.isQuarter && !hit.has(m.totalIdx)).forEach(m => {
+        const t  = m.time - allMarkers[0].time;
+        const x  = PAD.l + (t / totalDur) * pw;
+        ctx2.strokeStyle = 'rgba(232,75,75,0.5)'; ctx2.lineWidth = 1;
+        ctx2.beginPath(); ctx2.moveTo(x, PAD.t); ctx2.lineTo(x, PAD.t + ph); ctx2.stroke();
+      });
+    }
+
+    // Onset points
+    onsets.forEach(o => {
+      if (!allMarkers[o.markerIdx]) return;
+      const t   = allMarkers.find(m => m.totalIdx === o.markerIdx);
+      if (!t) return;
+      const xT  = t.time - allMarkers[0].time;
+      const x   = PAD.l + (xT / totalDur) * pw;
+      const cMs = Math.max(-MAX_MS, Math.min(MAX_MS, o.offset));
+      const y   = PAD.t + ph / 2 - (cMs / MAX_MS) * (ph / 2);
+      const col = o.category === 'in_time' ? '#4be89a' :
+                  o.category === 'off_beat' ? '#e84b4b' : '#e8c34b';
+      if (o.category === 'off_beat') {
+        ctx2.strokeStyle = col + 'aa'; ctx2.lineWidth = 1.5;
+        ctx2.beginPath(); ctx2.moveTo(x - 4, y - 4); ctx2.lineTo(x + 4, y + 4); ctx2.stroke();
+        ctx2.beginPath(); ctx2.moveTo(x + 4, y - 4); ctx2.lineTo(x - 4, y + 4); ctx2.stroke();
+      } else {
+        ctx2.fillStyle = col + 'cc';
+        ctx2.beginPath(); ctx2.arc(x, y, 3, 0, Math.PI * 2); ctx2.fill();
+      }
+    });
+  }
+
+  function drawHistogram(canvas) {
+    const ctx2 = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const PAD = { t: 10, r: 8, b: 18, l: 8 };
+    const pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b;
+    const BIN = 10, MIN_MS = -200, MAX_MS = 200;
+    const NUM_BINS = (MAX_MS - MIN_MS) / BIN;
+
+    ctx2.fillStyle = '#111'; ctx2.fillRect(0, 0, W, H);
+
+    const bins = new Array(NUM_BINS).fill(0);
+    onsets.filter(o => o.category !== 'off_beat').forEach(o => {
+      const idx = Math.floor((Math.max(MIN_MS, Math.min(MAX_MS - 1, o.offset)) - MIN_MS) / BIN);
+      if (idx >= 0 && idx < NUM_BINS) bins[idx]++;
+    });
+    const maxCount = Math.max(1, ...bins);
+    const bw = pw / NUM_BINS;
+
+    bins.forEach((count, i) => {
+      if (!count) return;
+      const ms  = MIN_MS + i * BIN + BIN / 2;
+      const bh  = (count / maxCount) * ph;
+      const x   = PAD.l + i * bw;
+      const y   = PAD.t + ph - bh;
+      const col = Math.abs(ms) <= cfg.marginMs         ? '#4be89a' :
+                  Math.abs(ms) <= cfg.marginMs * 2     ? '#e8c34b' : '#e84b4b';
+      ctx2.fillStyle = col + '99';
+      ctx2.fillRect(x + 0.5, y, bw - 1, bh);
+    });
+
+    // Zero line
+    const x0 = PAD.l + (NUM_BINS / 2) * bw;
+    ctx2.strokeStyle = '#555'; ctx2.lineWidth = 1;
+    ctx2.beginPath(); ctx2.moveTo(x0, PAD.t); ctx2.lineTo(x0, PAD.t + ph); ctx2.stroke();
+
+    // Labels
+    ctx2.fillStyle = '#333'; ctx2.font = '9px system-ui'; ctx2.textAlign = 'center';
+    ctx2.fillText('-200', PAD.l, PAD.t + ph + 12);
+    ctx2.fillText('0',    x0,    PAD.t + ph + 12);
+    ctx2.fillText('+200', PAD.l + pw, PAD.t + ph + 12);
+  }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  const mainEl = () => document.getElementById('main');
+
+  function renderStart() {
+    phase = 'config';
+    mainEl().innerHTML = `
+      <div class="start-screen">
+        <h2>Rhythm Trainer</h2>
+        <p>Configura BPM, durata e suddivisione. Poi premi Start: un conto di 4 battiti ti sincronizza, poi suona a tempo col metronomo.</p>
+        <button class="btn-action primary" id="btn-start" style="max-width:200px">Start</button>
+      </div>`;
+    document.getElementById('btn-start').onclick = startCountdown;
+  }
+
+  function renderCountdown() {
+    mainEl().innerHTML = `
+      <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px">
+        <div class="cfg-label">Conto in...</div>
+        <div class="beat-ring" id="countdown-ring">
+          <div class="beat-num" id="countdown-num" style="font-size:5rem">—</div>
+        </div>
+      </div>`;
+
+    // pulse the ring on each countdown beat
+    const observer = setInterval(() => {
+      const ring = document.getElementById('countdown-ring');
+      if (!ring) { clearInterval(observer); return; }
+      ring.className = 'beat-ring beat';
+      setTimeout(() => { if (ring) ring.className = 'beat-ring'; }, 120);
+    }, (60 / cfg.bpm) * 1000);
+  }
+
+  function renderPlaying() {
+    const micSection = cfg.inputMode === 'mic'
+      ? `<div class="mic-indicator"><div class="mic-dot" id="mic-dot"></div><span>Microfono attivo</span></div>`
+      : '';
+    const tapSection = cfg.inputMode === 'tap'
+      ? `<button class="tap-btn" id="tap-btn">TAP</button>`
+      : micSection;
+
+    mainEl().innerHTML = `
+      <div class="bar-label" id="bar-label">Battuta 1 / ${cfg.bars}</div>
+      <div class="beat-ring" id="beat-ring">
+        <div class="beat-num" id="beat-num">1</div>
+        <div class="beat-sub" id="beat-sub"></div>
+      </div>
+      <div class="feedback-flash" id="feedback"></div>
+      ${tapSection}
+      <div class="progress-bar" style="width:100%;max-width:480px">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <button class="btn-action" id="btn-stop" style="max-width:180px">Stop</button>`;
+
+    if (cfg.inputMode === 'tap') {
+      const tapBtn = document.getElementById('tap-btn');
+      const doTap  = () => recordOnset(getCtx().currentTime);
+      tapBtn.addEventListener('mousedown', doTap);
+      tapBtn.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
+    }
+    document.getElementById('btn-stop').onclick = stopSession;
+  }
+
+  function renderReport() {
+    const r   = computeReport();
+    const avgSign = r.avg >= 0 ? '+' : '';
+    const avgCol  = Math.abs(r.avg) <= cfg.marginMs ? 'green' : Math.abs(r.avg) <= cfg.marginMs * 2 ? 'yellow' : 'red';
+
+    const missedCard = !cfg.silencesAllowed
+      ? `<div class="stat-card"><div class="stat-value ${r.missed > 0 ? 'red' : 'green'}">${r.missed}</div><div class="stat-label">Mancati</div></div>`
+      : '';
+
+    mainEl().innerHTML = `
+      <div class="report-screen">
+        <h2>Report</h2>
+        <div class="stat-grid">
+          <div class="stat-card"><div class="stat-value green">${r.pctIn}%</div><div class="stat-label">In tempo</div></div>
+          <div class="stat-card"><div class="stat-value yellow">${r.early}</div><div class="stat-label">Anticipati</div></div>
+          <div class="stat-card"><div class="stat-value yellow">${r.late}</div><div class="stat-label">In ritardo</div></div>
+          <div class="stat-card"><div class="stat-value ${avgCol}">${avgSign}${Math.round(r.avg)}ms</div><div class="stat-label">Scarto medio</div></div>
+          <div class="stat-card"><div class="stat-value muted">${Math.round(r.std)}ms</div><div class="stat-label">Dev. standard</div></div>
+          <div class="stat-card"><div class="stat-value red">${r.offBeat}</div><div class="stat-label">Off-beat</div></div>
+          ${missedCard}
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title">Timeline — scarto per colpo (ms)</div>
+          <canvas id="scatter" width="580" height="160"></canvas>
+        </div>
+
+        <div class="charts-row">
+          <div class="chart-card">
+            <div class="chart-title">Distribuzione scarti</div>
+            <canvas id="histogram" width="340" height="120"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Off-beat</div>
+            <div class="offbeat-list" id="offbeat-list">
+              ${r.offBeat === 0 ? '<span style="color:var(--muted)">Nessuno</span>' : ''}
+            </div>
+          </div>
+        </div>
+
+        <div class="controls">
+          <button class="btn-action" id="btn-again">Ancora</button>
+          <button class="btn-action primary" id="btn-new">Nuova sessione</button>
+        </div>
+      </div>`;
+
+    document.getElementById('btn-again').onclick = startCountdown;
+    document.getElementById('btn-new').onclick   = renderStart;
+
+    // Off-beat list
+    const obList = document.getElementById('offbeat-list');
+    if (obList && r.offBeat > 0) {
+      obList.innerHTML = onsets
+        .filter(o => o.category === 'off_beat')
+        .map((o, i) => {
+          const sign = o.offset >= 0 ? '+' : '';
+          return `<div><span>#${i + 1}</span>${sign}${Math.round(o.offset)}ms</div>`;
+        }).join('');
+    }
+
+    // Draw charts after DOM is ready
+    requestAnimationFrame(() => {
+      const sc = document.getElementById('scatter');
+      const hi = document.getElementById('histogram');
+      if (sc) drawScatter(sc);
+      if (hi) drawHistogram(hi);
+    });
+  }
+
+  // ─── Spacebar for tap ──────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && cfg.inputMode === 'tap' && phase === 'playing') {
+      e.preventDefault();
+      recordOnset(getCtx().currentTime);
+      const tapBtn = document.getElementById('tap-btn');
+      if (tapBtn) { tapBtn.classList.add('tapped'); setTimeout(() => tapBtn.classList.remove('tapped'), 80); }
+    }
+  });
+
+  // ─── Config wiring ────────────────────────────────────────────────────────
+  (function initConfig() {
+    const bpmEl  = document.getElementById('bpm');
+    const bpmVal = document.getElementById('bpm-val');
+    bpmEl.oninput = () => { cfg.bpm = +bpmEl.value; bpmVal.textContent = cfg.bpm; };
+
+    document.getElementById('bars-btns').onclick = e => {
+      const btn = e.target.closest('button[data-bars]');
+      if (!btn) return;
+      cfg.bars = +btn.dataset.bars;
+      document.querySelectorAll('#bars-btns button').forEach(b => b.classList.toggle('active', b === btn));
+    };
+
+    document.getElementById('subdiv-btns').onclick = e => {
+      const btn = e.target.closest('button[data-sub]');
+      if (!btn) return;
+      cfg.subdivision = +btn.dataset.sub;
+      document.querySelectorAll('#subdiv-btns button').forEach(b => b.classList.toggle('active', b === btn));
+    };
+
+    document.getElementById('margin-btns').onclick = e => {
+      const btn = e.target.closest('button[data-ms]');
+      if (!btn) return;
+      cfg.marginMs = +btn.dataset.ms;
+      document.querySelectorAll('#margin-btns button').forEach(b => b.classList.toggle('active', b === btn));
+    };
+
+    document.getElementById('silence-toggle').onchange = e => {
+      cfg.silencesAllowed = e.target.checked;
+    };
+
+    document.getElementById('input-btns').onclick = e => {
+      const btn = e.target.closest('button[data-input]');
+      if (!btn) return;
+      cfg.inputMode = btn.dataset.input;
+      document.querySelectorAll('#input-btns button').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('sensitivity-row').style.display = cfg.inputMode === 'mic' ? 'block' : 'none';
+      if (cfg.inputMode === 'mic') startMic();
+      else stopMic();
+    };
+
+    const sensEl  = document.getElementById('sensitivity');
+    const sensVal = document.getElementById('sens-val');
+    sensEl.oninput = () => {
+      const v = +sensEl.value;
+      sensVal.textContent = v;
+      cfg.sensitivity = v / 100; // map 1-10 → 0.01-0.10
+    };
+  })();
+
+  renderStart();
+</script>
+</body>
+</html>
