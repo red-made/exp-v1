@@ -653,14 +653,15 @@
        (cfg.muteMode === 'every' ? ` | Mute: every ${cfg.muteEvery} beats` : cfg.muteMode === 'range' ? ` | Mute: ${cfg.muteFrom}s–${cfg.muteTo}s` : ''),
       `# Hits: ${r.total} | In tempo: ${r.pctIn}% | Avg offset: ${Math.round(r.avg)}ms | Std dev: ${Math.round(r.std)}ms`,
       ``,
-      `#    #   MarkerIdx  Beat       Offset(ms)   Category`,
+      `#    #   MarkerIdx  Beat       Offset(ms)   Category    Click`,
     ];
     onsets.forEach((o, i) => {
-      const m = allMarkers.find(mk => mk.totalIdx === o.markerIdx);
+      const m     = allMarkers.find(mk => mk.totalIdx === o.markerIdx);
       const label = m ? (m.label.beat + (m.label.sub || '')) : 'OFF';
       const sign  = o.offset >= 0 ? '+' : '';
+      const click = m ? (m.muted ? 'muted' : 'audible') : '—';
       lines.push(
-        `  ${String(i + 1).padStart(4)}   ${m ? String(o.markerIdx + 1).padStart(8) : '     OFF'}   ${label.padEnd(8)}   ${(sign + Math.round(o.offset) + 'ms').padStart(8)}   ${o.category}`
+        `  ${String(i + 1).padStart(4)}   ${m ? String(o.markerIdx + 1).padStart(8) : '     OFF'}   ${label.padEnd(8)}   ${(sign + Math.round(o.offset) + 'ms').padStart(8)}   ${o.category.padEnd(10)}  ${click}`
       );
     });
     if (!cfg.silencesAllowed) {
