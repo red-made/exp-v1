@@ -314,6 +314,9 @@
     <div id="sensitivity-row" style="display:none">
       <div class="cfg-label" style="margin-top:6px">Sensibilità &nbsp;<span id="sens-val" style="color:var(--text)">5</span></div>
       <input type="range" id="sensitivity" min="1" max="10" value="5">
+      <div class="cfg-label" style="margin-top:8px">Gain mic &nbsp;<span id="gain-val" style="color:var(--text)">1.0×</span></div>
+      <input type="range" id="mic-gain" min="1" max="8" step="1" value="2" style="margin-top:4px">
+      <div class="range-row"><span>0.5×</span><span>4×</span></div>
     </div>
   </div>
 </aside>
@@ -330,12 +333,12 @@
   const SCHED_INT  = 50;   // ms scheduler interval
   const COOLDOWN   = 0.08; // seconds between mic onsets
 
-  let cfg = { bpm: 80, durationSec: 30, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05, muteMode: 'none', muteEvery: 4, muteFrom: 10, muteTo: 20 };
+  let cfg = { bpm: 80, durationSec: 30, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05, micGain: 1.0, muteMode: 'none', muteEvery: 4, muteFrom: 10, muteTo: 20 };
 
   // ─── State ────────────────────────────────────────────────────────────────
   let phase = 'config';
   let audioCtx = null;
-  let micStream = null, micAnalyser = null, micBuf = null, micRaf = null;
+  let micStream = null, micAnalyser = null, micBuf = null, micRaf = null, micGainNode = null;
   let prevRms = 0, lastOnsetTime = -Infinity;
   let schedulerTimer = null;
   let allMarkers = [];   // { time, totalIdx, label, isAccent, isQuarter }
@@ -502,7 +505,10 @@
       micAnalyser = mCtx.createAnalyser();
       micAnalyser.fftSize = 1024;
       micBuf      = new Float32Array(micAnalyser.fftSize);
-      mCtx.createMediaStreamSource(micStream).connect(micAnalyser);
+      micGainNode = mCtx.createGain();
+      micGainNode.gain.value = cfg.micGain;
+      mCtx.createMediaStreamSource(micStream).connect(micGainNode);
+      micGainNode.connect(micAnalyser);
       micRaf      = requestAnimationFrame(micLoop);
     } catch(e) {
       alert('Microfono non disponibile. Usa la modalità Tap.');
@@ -1165,6 +1171,14 @@
       const v = +sensEl.value;
       sensVal.textContent = v;
       cfg.sensitivity = v / 100; // map 1-10 → 0.01-0.10
+    };
+
+    const gainEl  = document.getElementById('mic-gain');
+    const gainVal = document.getElementById('gain-val');
+    gainEl.oninput = () => {
+      cfg.micGain = +gainEl.value / 2; // map 1-8 → 0.5-4×
+      gainVal.textContent = cfg.micGain.toFixed(1) + '×';
+      if (micGainNode) micGainNode.gain.value = cfg.micGain;
     };
   })();
 
