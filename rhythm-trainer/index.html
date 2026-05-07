@@ -114,10 +114,12 @@
       letter-spacing: 0.05em;
     }
     .tap-btn:active, .tap-btn.tapped { transform: scale(0.93); }
-    .tap-btn.hit-in    { background: rgba(75,232,154,0.15); border-color: var(--green); }
-    .tap-btn.hit-early { background: rgba(232,195,75,0.15); border-color: var(--yellow); }
-    .tap-btn.hit-late  { background: rgba(232,195,75,0.15); border-color: var(--yellow); }
-    .tap-btn.hit-off   { background: rgba(232,75,75,0.12);  border-color: var(--red); }
+    .tap-btn.hit-in,    .beat-ring.hit-in    { background: rgba(75,232,154,0.15); border-color: var(--green); }
+    .tap-btn.hit-early, .beat-ring.hit-early { background: rgba(232,195,75,0.15); border-color: var(--yellow); }
+    .tap-btn.hit-late,  .beat-ring.hit-late  { background: rgba(232,195,75,0.15); border-color: var(--yellow); }
+    .tap-btn.hit-off,   .beat-ring.hit-off   { background: rgba(232,75,75,0.12);  border-color: var(--red); }
+    .beat-ring.tappable { cursor: pointer; user-select: none; }
+    .beat-ring.tappable:active { transform: scale(0.95); }
 
     .progress-bar { width: 100%; max-width: 480px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s linear; }
@@ -652,32 +654,24 @@
 
   let feedbackTimer = null;
   function showTapFeedback(category, offsetMs) {
-    const tapBtn  = document.getElementById('tap-btn');
-    const feedEl  = document.getElementById('feedback');
+    const ring   = document.getElementById('beat-ring');
+    const feedEl = document.getElementById('feedback');
 
     clearTimeout(feedbackTimer);
 
-    if (tapBtn) {
-      tapBtn.className = 'tap-btn hit-' + (
-        category === 'in_time' ? 'in' :
-        category === 'early'   ? 'early' :
-        category === 'late'    ? 'late' : 'off');
+    if (ring) {
+      const hitCls = 'hit-' + (category === 'in_time' ? 'in' : category === 'early' ? 'early' : category === 'late' ? 'late' : 'off');
+      ring.classList.add(hitCls);
+      feedbackTimer = setTimeout(() => { ring.classList.remove(hitCls); if (feedEl) feedEl.textContent = ''; }, 400);
     }
 
     if (feedEl) {
       const sign = offsetMs >= 0 ? '+' : '';
       const col  = category === 'in_time' ? 'var(--green)' :
                    category === 'off_beat' ? 'var(--red)' : 'var(--yellow)';
-      feedEl.style.color   = col;
-      feedEl.textContent   = category === 'off_beat'
-        ? 'off-beat'
-        : `${sign}${Math.round(offsetMs)}ms`;
+      feedEl.style.color = col;
+      feedEl.textContent = category === 'off_beat' ? 'off-beat' : `${sign}${Math.round(offsetMs)}ms`;
     }
-
-    feedbackTimer = setTimeout(() => {
-      if (tapBtn) tapBtn.className = 'tap-btn';
-      if (feedEl) feedEl.textContent = '';
-    }, 400);
   }
 
   // ─── Report computation ───────────────────────────────────────────────────
@@ -1000,31 +994,29 @@
   }
 
   function renderPlaying() {
-    const micSection = cfg.inputMode === 'mic'
+    const isTap = cfg.inputMode === 'tap';
+    const micIndicator = !isTap
       ? `<div class="mic-indicator"><div class="mic-dot" id="mic-dot"></div><span>Microfono attivo</span></div>`
       : '';
-    const tapSection = cfg.inputMode === 'tap'
-      ? `<button class="tap-btn" id="tap-btn">TAP</button>`
-      : micSection;
 
     mainEl().innerHTML = `
       <div class="bar-label" id="bar-label">0s / ${cfg.durationSec}s</div>
-      <div class="beat-ring" id="beat-ring">
+      <div class="beat-ring${isTap ? ' tappable' : ''}" id="beat-ring">
         <div class="beat-num" id="beat-num">1</div>
         <div class="beat-sub" id="beat-sub"></div>
       </div>
       <div class="feedback-flash" id="feedback"></div>
-      ${tapSection}
+      ${micIndicator}
       <div class="progress-bar" style="width:100%;max-width:480px">
         <div class="progress-fill" id="progress-fill" style="width:0%"></div>
       </div>
       <button class="btn-action" id="btn-stop" style="max-width:180px">Stop</button>`;
 
-    if (cfg.inputMode === 'tap') {
-      const tapBtn = document.getElementById('tap-btn');
-      const doTap  = () => recordOnset(getCtx().currentTime);
-      tapBtn.addEventListener('mousedown', doTap);
-      tapBtn.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
+    if (isTap) {
+      const ring  = document.getElementById('beat-ring');
+      const doTap = () => recordOnset(getCtx().currentTime);
+      ring.addEventListener('mousedown', doTap);
+      ring.addEventListener('touchstart', e => { e.preventDefault(); doTap(); }, { passive: false });
     }
     document.getElementById('btn-stop').onclick = stopSession;
   }
@@ -1145,8 +1137,8 @@
     if (e.code === 'Space' && cfg.inputMode === 'tap' && phase === 'playing') {
       e.preventDefault();
       recordOnset(getCtx().currentTime);
-      const tapBtn = document.getElementById('tap-btn');
-      if (tapBtn) { tapBtn.classList.add('tapped'); setTimeout(() => tapBtn.classList.remove('tapped'), 80); }
+      const ring = document.getElementById('beat-ring');
+      if (ring) { ring.classList.add('tapped'); setTimeout(() => ring.classList.remove('tapped'), 80); }
     }
   });
 
