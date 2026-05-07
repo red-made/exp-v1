@@ -184,6 +184,7 @@
     .bests-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
     @media (max-width: 640px) { .bests-grid { grid-template-columns: repeat(2, 1fr); } }
 
+    .cfg-desc { font-size: 0.7rem; color: var(--muted); line-height: 1.45; margin-top: 3px; }
     .btn-danger { color: var(--red); border-color: #2a1010; }
     .btn-danger:hover { border-color: var(--red); }
 
@@ -312,11 +313,14 @@
       <button data-input="mic">Microfono</button>
     </div>
     <div id="sensitivity-row" style="display:none">
-      <div class="cfg-label" style="margin-top:6px">Sensibilità &nbsp;<span id="sens-val" style="color:var(--text)">5</span></div>
-      <input type="range" id="sensitivity" min="1" max="10" value="5">
       <div class="cfg-label" style="margin-top:8px">Gain mic &nbsp;<span id="gain-val" style="color:var(--text)">1.0×</span></div>
-      <input type="range" id="mic-gain" min="1" max="8" step="1" value="2" style="margin-top:4px">
+      <div class="cfg-desc">Amplifica il segnale prima del rilevamento. Aumenta se i colpi non vengono rilevati.</div>
+      <input type="range" id="mic-gain" min="1" max="8" step="1" value="2" style="margin-top:6px">
       <div class="range-row"><span>0.5×</span><span>4×</span></div>
+      <div class="cfg-label" style="margin-top:10px">Sensibilità &nbsp;<span id="sens-val" style="color:var(--text)">5</span></div>
+      <div class="cfg-desc">Variazione minima del segnale per rilevare un colpo. Abbassa se scatta da solo, alza se manca colpi.</div>
+      <input type="range" id="sensitivity" min="1" max="10" value="5" style="margin-top:6px">
+      <canvas id="mic-preview" width="220" height="80" style="display:block;margin-top:10px;border-radius:5px;border:1px solid var(--border)"></canvas>
     </div>
   </div>
 </aside>
@@ -339,6 +343,7 @@
   let phase = 'config';
   let audioCtx = null;
   let micStream = null, micAnalyser = null, micBuf = null, micRaf = null, micGainNode = null;
+  let micDeltaHist = new Array(110).fill(0);
   let prevRms = 0, lastOnsetTime = -Infinity;
   let schedulerTimer = null;
   let allMarkers = [];   // { time, totalIdx, label, isAccent, isQuarter }
@@ -475,26 +480,70 @@
     return Math.sqrt(s / buf.length);
   }
 
-  function micLoop() {
-    if (!micAnalyser || phase === 'config') { micRaf = requestAnimationFrame(micLoop); return; }
-    micAnalyser.getFloatTimeDomainData(micBuf);
-    const rms   = computeRms(micBuf);
-    const delta = rms - prevRms;
-    prevRms     = rms;
-    const ctx   = getCtx();
-    const now   = ctx.currentTime;
+  function drawMicPreview(delta, triggered) {
+    const canvas = document.getElementById('mic-preview');
+    if (!canvas || !micBuf) return;
+    const c = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const wH = 50; // waveform area height
 
-    // Update mic dot
+    c.fillStyle = '#0a0a0a';
+    c.fillRect(0, 0, W, H);
+
+    // Center line
+    c.strokeStyle = '#1c1c1c'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(0, wH / 2); c.lineTo(W, wH / 2); c.stroke();
+
+    // Waveform
+    c.strokeStyle = triggered ? '#4be89a' : '#2a4a3a'; c.lineWidth = 1.2;
+    c.beginPath();
+    for (let i = 0; i < micBuf.length; i++) {
+      const x = (i / (micBuf.length - 1)) * W;
+      const y = wH / 2 - micBuf[i] * wH * 0.45;
+      i === 0 ? c.moveTo(x, y) : c.lineTo(x, y);
+    }
+    c.stroke();
+
+    // Delta history bars
+    const barTop = wH + 4, barH = H - barTop - 4;
+    const maxD = 0.12, bw = W / micDeltaHist.length;
+    micDeltaHist.forEach((d, i) => {
+      const bh = Math.min(barH, (d / maxD) * barH);
+      c.fillStyle = d >= cfg.sensitivity ? '#4be89a55' : '#ffffff0a';
+      c.fillRect(i * bw, barTop + barH - bh, Math.max(1, bw - 0.5), bh);
+    });
+
+    // Sensitivity threshold line
+    const threshY = barTop + barH - Math.min(barH, (cfg.sensitivity / maxD) * barH);
+    c.strokeStyle = 'rgba(124,111,247,0.75)'; c.lineWidth = 1; c.setLineDash([3, 3]);
+    c.beginPath(); c.moveTo(0, threshY); c.lineTo(W, threshY); c.stroke();
+    c.setLineDash([]);
+  }
+
+  function micLoop() {
+    micRaf = requestAnimationFrame(micLoop);
+    if (!micAnalyser) return;
+
+    micAnalyser.getFloatTimeDomainData(micBuf);
+    const rms     = computeRms(micBuf);
+    const delta   = rms - prevRms;
+    prevRms       = rms;
+
+    micDeltaHist.push(Math.max(0, delta));
+    if (micDeltaHist.length > 110) micDeltaHist.shift();
+    const triggered = delta > cfg.sensitivity;
+    drawMicPreview(delta, triggered);
+
     const dot = document.getElementById('mic-dot');
     if (dot) dot.classList.toggle('active', rms > 0.02);
 
-    if (delta > cfg.sensitivity && (now - lastOnsetTime) > COOLDOWN) {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+    if (triggered && (now - lastOnsetTime) > COOLDOWN) {
       lastOnsetTime = now;
-      // Compensate for analyser buffer latency (~half buffer at sample rate)
       const inputLat = micAnalyser.fftSize / (2 * ctx.sampleRate);
       if (phase === 'playing') recordOnset(now - inputLat);
     }
-    micRaf = requestAnimationFrame(micLoop);
   }
 
   async function startMic() {
@@ -522,6 +571,9 @@
     if (micRaf)    { cancelAnimationFrame(micRaf); micRaf = null; }
     if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
     micAnalyser = null; micBuf = null; prevRms = 0;
+    micDeltaHist.fill(0);
+    const cv = document.getElementById('mic-preview');
+    if (cv) cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
   }
 
   // ─── Session lifecycle ────────────────────────────────────────────────────
