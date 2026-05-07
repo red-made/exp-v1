@@ -351,7 +351,7 @@
   // ─── State ────────────────────────────────────────────────────────────────
   let phase = 'config';
   let audioCtx = null;
-  let micStream = null, micAnalyser = null, micBuf = null, micRaf = null, micGainNode = null;
+  let micStream = null, micAnalyser = null, micBuf = null, micRaf = null, micTimer = null, micGainNode = null;
   let micDeltaHist = new Array(110).fill(0);
   let prevRms = 0, lastOnsetTime = -Infinity;
   let schedulerTimer = null;
@@ -529,30 +529,36 @@
     c.setLineDash([]);
   }
 
-  function micLoop() {
-    micRaf = requestAnimationFrame(micLoop);
+  // Audio tick: fixed interval, not tied to display refresh
+  function micAudioTick() {
     if (!micAnalyser) return;
-
     micAnalyser.getFloatTimeDomainData(micBuf);
-    const rms     = computeRms(micBuf);
-    const delta   = rms - prevRms;
-    prevRms       = rms;
+    const rms   = computeRms(micBuf);
+    const delta = rms - prevRms;
+    prevRms     = rms;
 
     micDeltaHist.push(Math.max(0, delta));
     if (micDeltaHist.length > 110) micDeltaHist.shift();
-    const triggered = delta > cfg.sensitivity;
-    drawMicPreview(delta, triggered);
 
     const dot = document.getElementById('mic-dot');
     if (dot) dot.classList.toggle('active', rms > 0.02);
 
     const ctx = getCtx();
     const now = ctx.currentTime;
-    if (triggered && (now - lastOnsetTime) > COOLDOWN) {
+    if (delta > cfg.sensitivity && (now - lastOnsetTime) > COOLDOWN) {
       lastOnsetTime = now;
       const inputLat = micAnalyser.fftSize / (2 * ctx.sampleRate);
       if (phase === 'playing') recordOnset(now - inputLat);
     }
+  }
+
+  // Visual loop: RAF, only for canvas rendering
+  function micVisualLoop() {
+    micRaf = requestAnimationFrame(micVisualLoop);
+    if (!micAnalyser) return;
+    micAnalyser.getFloatTimeDomainData(micBuf);
+    const lastDelta = micDeltaHist[micDeltaHist.length - 1] || 0;
+    drawMicPreview(lastDelta, lastDelta > cfg.sensitivity);
   }
 
   async function startMic() {
@@ -567,7 +573,8 @@
       micGainNode.gain.value = cfg.micGain;
       mCtx.createMediaStreamSource(micStream).connect(micGainNode);
       micGainNode.connect(micAnalyser);
-      micRaf      = requestAnimationFrame(micLoop);
+      micTimer = setInterval(micAudioTick, 15);
+      micRaf   = requestAnimationFrame(micVisualLoop);
     } catch(e) {
       alert('Microfono non disponibile. Usa la modalità Tap.');
       cfg.inputMode = 'tap';
@@ -577,6 +584,7 @@
   }
 
   function stopMic() {
+    if (micTimer)  { clearInterval(micTimer); micTimer = null; }
     if (micRaf)    { cancelAnimationFrame(micRaf); micRaf = null; }
     if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
     micAnalyser = null; micBuf = null; prevRms = 0;
