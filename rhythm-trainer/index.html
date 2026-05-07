@@ -290,9 +290,16 @@
       <button data-mute="range">Fascia</button>
     </div>
     <div id="mute-every-row" style="display:none;margin-top:8px">
-      <div class="cfg-label">Ogni <span id="mute-every-val" style="color:var(--text)">4</span> beat</div>
-      <input type="range" id="mute-every" min="2" max="8" value="4" style="margin-top:6px">
-      <div class="range-row"><span>2</span><span>8</span></div>
+      <div class="cfg-label">Ciclo: <span id="mute-every-val" style="color:var(--text)">8</span> beat</div>
+      <div class="btn-group" id="mute-every-btns" style="margin-top:6px">
+        <button data-every="4"  class="active">4</button>
+        <button data-every="8">8</button>
+        <button data-every="16">16</button>
+        <button data-every="32">32</button>
+      </div>
+      <div class="cfg-label" style="margin-top:10px">Silenziosi: <span id="mute-count-val" style="color:var(--text)">4</span> beat</div>
+      <input type="range" id="mute-count" min="1" max="7" value="4" style="margin-top:6px">
+      <div class="range-row" id="mute-count-range"><span>1</span><span>7</span></div>
     </div>
     <div id="mute-range-row" style="display:none;margin-top:8px">
       <div style="display:flex;gap:10px">
@@ -339,7 +346,7 @@
   const SCHED_INT  = 50;   // ms scheduler interval
   const COOLDOWN   = 0.08; // seconds between mic onsets
 
-  let cfg = { bpm: 80, durationSec: 30, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05, micGain: 1.0, muteMode: 'none', muteEvery: 4, muteFrom: 10, muteTo: 20 };
+  let cfg = { bpm: 80, durationSec: 30, subdivision: 1, marginMs: 40, silencesAllowed: true, inputMode: 'tap', sensitivity: 0.05, micGain: 1.0, muteMode: 'none', muteEvery: 8, muteCount: 4, muteFrom: 10, muteTo: 20 };
 
   // ─── State ────────────────────────────────────────────────────────────────
   let phase = 'config';
@@ -398,7 +405,7 @@
     if (cfg.muteMode === 'none') return false;
     if (cfg.muteMode === 'every') {
       const qi = Math.floor(totalIdx / cfg.subdivision); // quarter beat index (0-based)
-      return (qi + 1) % cfg.muteEvery === 0;
+      return (qi % cfg.muteEvery) >= (cfg.muteEvery - cfg.muteCount);
     }
     if (cfg.muteMode === 'range') {
       const elapsed = time - sessionStart;
@@ -706,7 +713,7 @@
     const lines = [
       `# Rhythm Trainer — Session Log`,
       `# BPM: ${cfg.bpm} | Duration: ${cfg.durationSec}s | Subdiv: ${subdiv} | Margin: ±${cfg.marginMs}ms | Input: ${cfg.inputMode}` +
-       (cfg.muteMode === 'every' ? ` | Mute: every ${cfg.muteEvery} beats` : cfg.muteMode === 'range' ? ` | Mute: ${cfg.muteFrom}s–${cfg.muteTo}s` : ''),
+       (cfg.muteMode === 'every' ? ` | Mute: ${cfg.muteCount} of ${cfg.muteEvery} beats` : cfg.muteMode === 'range' ? ` | Mute: ${cfg.muteFrom}s–${cfg.muteTo}s` : ''),
       `# Hits: ${r.total} | In tempo: ${r.pctIn}% | Avg offset: ${Math.round(r.avg)}ms | Std dev: ${Math.round(r.std)}ms`,
       ``,
       `#    #   MarkerIdx  Beat       Offset(ms)   Category    Click`,
@@ -1161,9 +1168,27 @@
       document.getElementById('mute-range-row').style.display = cfg.muteMode === 'range' ? 'block' : 'none';
     };
 
-    const muteEveryEl  = document.getElementById('mute-every');
-    const muteEveryVal = document.getElementById('mute-every-val');
-    muteEveryEl.oninput = () => { cfg.muteEvery = +muteEveryEl.value; muteEveryVal.textContent = cfg.muteEvery; };
+    const muteEveryVal  = document.getElementById('mute-every-val');
+    const muteCountEl  = document.getElementById('mute-count');
+    const muteCountVal = document.getElementById('mute-count-val');
+
+    function updateMuteEvery(val) {
+      cfg.muteEvery = val;
+      muteEveryVal.textContent = val;
+      // clamp muteCount to muteEvery - 1
+      muteCountEl.max = val - 1;
+      document.getElementById('mute-count-range').children[1].textContent = val - 1;
+      if (cfg.muteCount >= val) { cfg.muteCount = val - 1; muteCountEl.value = cfg.muteCount; muteCountVal.textContent = cfg.muteCount; }
+    }
+
+    document.getElementById('mute-every-btns').onclick = e => {
+      const btn = e.target.closest('button[data-every]');
+      if (!btn) return;
+      document.querySelectorAll('#mute-every-btns button').forEach(b => b.classList.toggle('active', b === btn));
+      updateMuteEvery(+btn.dataset.every);
+    };
+
+    muteCountEl.oninput = () => { cfg.muteCount = +muteCountEl.value; muteCountVal.textContent = cfg.muteCount; };
 
     const muteFromEl  = document.getElementById('mute-from');
     const muteFromVal = document.getElementById('mute-from-val');
