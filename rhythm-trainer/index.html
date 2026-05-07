@@ -436,17 +436,19 @@
   function recordOnset(time) {
     if (phase !== 'playing' || allMarkers.length === 0) return;
 
-    // Find nearest marker within half a subdivision interval
-    const halfInterval = (60 / cfg.bpm / cfg.subdivision / 2);
-    let nearest = null, minDist = Infinity;
-    for (let i = allMarkers.length - 1; i >= 0 && i >= allMarkers.length - 20; i--) {
-      const d = Math.abs(allMarkers[i].time - time);
-      if (d < minDist) { minDist = d; nearest = allMarkers[i]; }
+    const halfInterval = 60 / cfg.bpm / cfg.subdivision / 2;
+
+    // Once all beats are scheduled, reject hits that fall past the last marker's window
+    if (subdivsScheduled >= totalSubdivs) {
+      const lastM = allMarkers[allMarkers.length - 1];
+      if (time > lastM.time + halfInterval) return;
     }
-    // also check a few future markers
-    const futureIdx = Math.min(allMarkers.length - 1, subdivsScheduled + 3);
-    for (let i = allMarkers.length - 1; i <= futureIdx && i < allMarkers.length; i++) {
-      if (i < 0) continue;
+
+    // Search past markers (up to 20 back) and up to 4 future scheduled markers
+    let nearest = null, minDist = Infinity;
+    const lo = Math.max(0, allMarkers.length - 20);
+    const hi = Math.min(allMarkers.length, subdivsScheduled + 4);
+    for (let i = lo; i < hi; i++) {
       const d = Math.abs(allMarkers[i].time - time);
       if (d < minDist) { minDist = d; nearest = allMarkers[i]; }
     }
@@ -485,7 +487,9 @@
 
     if (delta > cfg.sensitivity && (now - lastOnsetTime) > COOLDOWN) {
       lastOnsetTime = now;
-      if (phase === 'playing') recordOnset(now);
+      // Compensate for analyser buffer latency (~half buffer at sample rate)
+      const inputLat = micAnalyser.fftSize / (2 * ctx.sampleRate);
+      if (phase === 'playing') recordOnset(now - inputLat);
     }
     micRaf = requestAnimationFrame(micLoop);
   }
@@ -823,12 +827,19 @@
   }
 
   function computeBests(hist) {
-    if (!hist.length) return null;
+    const valid = hist.filter(s => s.total > 0);
+    if (!valid.length) return null;
+    const pick = (arr, fn) => arr.reduce((b, s) => fn(s) < fn(b) ? s : b, arr[0]);
+    const pickMax = (arr, fn) => arr.reduce((b, s) => fn(s) > fn(b) ? s : b, arr[0]);
+    const bPct = pickMax(valid, s => s.pctIn);
+    const bAvg = pick(valid, s => Math.abs(s.avg));
+    const bStd = pick(valid, s => s.std);
+    const bOff = pick(valid, s => s.offBeat);
     return {
-      pctIn:   Math.max(...hist.map(s => s.pctIn)),
-      avgAbs:  Math.min(...hist.map(s => Math.abs(s.avg))),
-      std:     Math.min(...hist.map(s => s.std)),
-      offBeat: Math.min(...hist.map(s => s.offBeat)),
+      pctIn:   { val: bPct.pctIn,          ts: bPct.ts },
+      avgAbs:  { val: Math.abs(bAvg.avg),  ts: bAvg.ts },
+      std:     { val: bStd.std,            ts: bStd.ts },
+      offBeat: { val: bOff.offBeat,        ts: bOff.ts },
     };
   }
 
@@ -845,14 +856,20 @@
 
     if (!hist.length) return `<p style="color:var(--muted);text-align:center;padding:32px 0">Nessuna sessione ancora.</p>`;
 
+    const bestCard = (val, label, date) => `
+      <div class="stat-card">
+        <div class="stat-value green">${val}</div>
+        <div class="stat-label">${label}</div>
+        <div style="font-size:0.65rem;color:var(--muted);margin-top:5px">${fmtDate(date)}</div>
+      </div>`;
     const bestsHtml = bests ? `
       <div>
         <div class="section-label">Migliore di sempre</div>
         <div class="bests-grid">
-          <div class="stat-card"><div class="stat-value green">${bests.pctIn}%</div><div class="stat-label">In tempo</div></div>
-          <div class="stat-card"><div class="stat-value green">${bests.avgAbs}ms</div><div class="stat-label">Scarto medio</div></div>
-          <div class="stat-card"><div class="stat-value green">${bests.std}ms</div><div class="stat-label">Dev. std</div></div>
-          <div class="stat-card"><div class="stat-value green">${bests.offBeat}</div><div class="stat-label">Off-beat</div></div>
+          ${bestCard(bests.pctIn.val + '%',  'In tempo',     bests.pctIn.ts)}
+          ${bestCard(bests.avgAbs.val + 'ms','Scarto medio', bests.avgAbs.ts)}
+          ${bestCard(bests.std.val + 'ms',   'Dev. std',     bests.std.ts)}
+          ${bestCard(bests.offBeat.val,       'Off-beat',     bests.offBeat.ts)}
         </div>
       </div>` : '';
 
@@ -860,10 +877,10 @@
       const isCur  = i === 0;
       const pctCol = s.pctIn >= 80 ? 'green' : s.pctIn >= 60 ? 'yellow' : 'red';
       const isBest = bests && {
-        pctIn:  s.pctIn   === bests.pctIn,
-        avg:    Math.abs(s.avg) === bests.avgAbs,
-        std:    s.std     === bests.std,
-        off:    s.offBeat === bests.offBeat,
+        pctIn: s.pctIn     === bests.pctIn.val,
+        avg:   Math.abs(s.avg) === bests.avgAbs.val,
+        std:   s.std       === bests.std.val,
+        off:   s.offBeat   === bests.offBeat.val,
       };
       return `<tr${isCur ? ' class="cur"' : ''}>
         <td>${fmtDate(s.ts)}</td>
